@@ -30,6 +30,7 @@ import { Button, Panel, Textarea } from "@/components/ui/design-system";
 import { DeskShell } from "@/components/shell/desk-shell";
 import { type AgentResult, type DiscoverySummary, type PolicyVerdict, type Product, type StructuredIntent, intentDisplayNeed, intentMaxBudgetInr } from "@/lib/agent";
 import type { DemoPrompt } from "@/lib/agent/demo-prompts";
+import { TransactionCart } from "@/components/desk/transaction-cart";
 import { useCart } from "@/hooks/use-cart";
 import { openRazorpayCheckout } from "@/lib/razorpay/checkout";
 
@@ -90,7 +91,7 @@ export function DeskApp() {
   const [resumeAuthorizeAfterAuth, setResumeAuthorizeAfterAuth] = useState(false);
   const [pendingForceFail, setPendingForceFail] = useState(false);
 
-  const { cart, refresh: refreshCart } = useCart(sessionId);
+  const { cart, loading: cartLoading, refresh: refreshCart, updateQuantity, removeLine } = useCart(sessionId);
 
   const refreshAuthState = useCallback(() => {
     window.dispatchEvent(new Event("razorflow:auth-changed"));
@@ -643,49 +644,29 @@ export function DeskApp() {
                   </p>
                 </div>
 
-                <div className="mt-4 flex-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted">Cart</p>
-                  {cart.lines.length > 0 ? (
-                    <ul className="mt-2 space-y-2 text-sm" data-testid="cart-summary">
-                      {cart.lines.map((line) => (
-                        <li key={line.id} className="flex items-start justify-between gap-3">
-                          <span className="text-ink-soft">
-                            {line.name}
-                            {line.quantity > 1 ? ` × ${line.quantity}` : ""}
-                          </span>
-                          <span className="shrink-0 font-medium tabular">
-                            <Money value={line.lineTotal} />
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-2 text-sm text-muted" data-testid="cart-empty-hint">
-                      No items yet. Add products from the agent results.
-                    </p>
-                  )}
-                </div>
+                <TransactionCart
+                  cart={cart}
+                  loading={cartLoading}
+                  onUpdateQuantity={updateQuantity}
+                  onRemoveLine={removeLine}
+                />
 
-                <div className="mt-4 border-t border-line/60 pt-4">
-                  <dl className="space-y-2 text-sm">
-                    <div className="rf-kv-row py-0">
-                      <dt className="text-muted">Subtotal</dt>
-                      <dd className="font-medium tabular">
-                        <Money value={cart.subtotal} />
-                      </dd>
-                    </div>
+                {cart.lines.length > 0 ? (
+                  <div className="mt-4 border-t border-line/60 pt-4">
                     {result && result.discountPct > 0 ? (
-                      <div className="rf-kv-row py-0">
-                        <dt className="text-muted">Discount</dt>
-                        <dd className="font-medium text-success tabular">−{result.discountPct}%</dd>
-                      </div>
+                      <dl className="space-y-2 text-sm">
+                        <div className="rf-kv-row py-0">
+                          <dt className="text-muted">Discount</dt>
+                          <dd className="font-medium text-success tabular">−{result.discountPct}%</dd>
+                        </div>
+                      </dl>
                     ) : null}
-                  </dl>
-                  <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">Total</p>
-                  <p className="mt-1 text-3xl font-semibold tracking-tight tabular" data-testid="checkout-total">
-                    <Money value={cart.subtotal} />
-                  </p>
-                </div>
+                    <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">Total</p>
+                    <p className="mt-1 text-3xl font-semibold tracking-tight tabular" data-testid="checkout-total">
+                      <Money value={cart.subtotal} />
+                    </p>
+                  </div>
+                ) : null}
 
                 <div className="rf-desk-transact-actions mt-auto pt-4">
                   <button

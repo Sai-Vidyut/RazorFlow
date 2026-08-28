@@ -31,8 +31,7 @@ npm run catalog:images
 | Route | Purpose |
 | --- | --- |
 | `/` | Product story and live metrics (this week) |
-| `/desk` | Intent → recommendation → policy → Razorpay payment |
-| `/cart` | User-controlled cart (per BuyerSession) before checkout |
+| `/desk` | Intent → recommendation → policy → user-controlled cart → Razorpay payment |
 | `/policies` | Merchant guardrails (read/write) |
 | `/admin` | Merchant control plane: overview, orders, payments, recovery, products, policies, activity, insights, staff |
 
@@ -129,9 +128,11 @@ The app listens on `http://localhost:3010`.
 
 1. Open `/desk`, run the agent on a buyer intent (budget, use case, product count, or sort order).
 2. When multiple matches are found, browse options one at a time with **Next product**; add only what you want with **Add to cart** (never auto-added).
-3. Open **Cart** from the top bar, adjust quantities, then authorize payment (Razorpay Test Mode or simulate decline).
+3. Review and adjust the cart in the **Transaction** column (quantity, remove), then authorize payment (Razorpay Test Mode or simulate decline).
 4. On failure, recovery evaluates policy and catalog before retry.
 5. Open `/admin` for orders, payments, recovery queue, products, and audit activity.
+
+Agent recommendations are not cart items until the buyer taps **Add to cart**. The Transaction stage is the single source of truth for the active cart during checkout.
 
 ## Tests
 

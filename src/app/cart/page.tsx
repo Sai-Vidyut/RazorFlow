@@ -1,10 +1,6 @@
-import { Suspense } from "react";
-import CartPageClient from "./cart-client";
+import { redirect } from "next/navigation";
 
+/** Legacy route — cart lives in /desk Transaction section. */
 export default function CartPage() {
-  return (
-    <Suspense fallback={<div className="p-6 text-sm text-muted">Loading cart…</div>}>
-      <CartPageClient />
-    </Suspense>
-  );
+  redirect("/desk");
 }

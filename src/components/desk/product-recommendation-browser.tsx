@@ -59,6 +59,7 @@ export function ProductRecommendationBrowser({
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={current.sku}
+            data-active-sku={current.sku}
             initial={reduce ? false : { opacity: 0, x: 12 }}
             animate={{ opacity: 1, x: 0 }}
             exit={reduce ? undefined : { opacity: 0, x: -12 }}
@@ -87,6 +88,7 @@ export function ProductRecommendationBrowser({
                 </p>
                 <div className="mt-4">
                   <AddToCartButton
+                    key={current.sku}
                     sessionId={sessionId}
                     sku={current.sku}
                     inCart={inCart}

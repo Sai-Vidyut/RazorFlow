@@ -57,8 +57,7 @@ Gemini never receives the product catalog. Gemini never sets prices, discounts, 
 | Route | Job |
 | --- | --- |
 | `/` | Explain the product and send merchants to the desk |
-| `/desk` | Run intent → recommendation → policy → payment UI |
-| `/cart` | Explicit cart lines, quantity controls, proceed to checkout |
+| `/desk` | Run intent → recommendation → policy → user-controlled cart in Transaction → payment UI |
 | `/policies` | Show and adjust merchant guardrails (persisted) |
 | `/admin` | Merchant control plane: overview, orders, payments, recovery, products, policies, activity, insights |
 
@@ -106,13 +105,20 @@ Sorting runs **after** category and budget filters. Example: earbuds under ₹50
 
 ## Cart
 
+An explicitly user-controlled cart integrated into the **Transaction** stage of `/desk`. Agent recommendations are not cart items until the buyer taps **Add to cart**.
+
 `CartLine` rows belong to a `BuyerSession` (anonymous buyers supported). Items enter the cart only via explicit buyer action (`POST /api/cart`).
 
+- The Transaction column on `/desk` is the single source of truth for the active cart during checkout
 - Agent recommendations expose **Add to cart**; browsing options does not modify the cart
 - Already-in-cart products show **Added to cart**
+- Quantity +/- and **Remove** controls live in Transaction (reuse `PATCH` / `DELETE /api/cart`)
 - **Suggested accessories** are optional; they do not affect subtotals until added
+- Top-bar cart indicator shows item count and scrolls to Transaction on desk (no standalone cart page)
 - Checkout uses `POST /api/checkout` with `{ sessionId, source: "cart" }` after policy validation on cart contents
 - Orders persist `OrderLineItem` rows for multi-SKU audit; `amountPaise` remains the server-computed cart total
+
+Legacy `/cart` redirects to `/desk`.
 
 ## Persistence
 

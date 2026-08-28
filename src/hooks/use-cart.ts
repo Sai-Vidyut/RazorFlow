@@ -84,5 +84,35 @@ export function useCart(sessionId: string | null) {
     return true;
   }
 
-  return { cart, loading, addedSku, refresh, addSku };
+  async function updateQuantity(lineId: string, quantity: number) {
+    if (!sessionId) return false;
+    const response = await fetch("/api/cart", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, lineId, quantity }),
+    });
+    if (!response.ok) return false;
+    const payload = (await response.json()) as { cart: CartState };
+    setCart(payload.cart);
+    dispatchCartUpdated();
+    return true;
+  }
+
+  async function removeLine(lineId: string) {
+    if (!sessionId) return false;
+    const response = await fetch("/api/cart", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, lineId }),
+    });
+    if (!response.ok) return false;
+    const payload = (await response.json()) as { cart: CartState };
+    setCart(payload.cart);
+    dispatchCartUpdated();
+    return true;
+  }
+
+  return { cart, loading, addedSku, refresh, addSku, updateQuantity, removeLine };
 }
