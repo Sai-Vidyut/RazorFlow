@@ -299,10 +299,15 @@ export async function registerAccount(input: {
     throw error;
   }
 
-  await createAndSendVerificationCode(account);
+  try {
+    await createAndSendVerificationCode(account);
 
-  if (input.buyerSessionId) {
-    await linkAccountToBuyerSession(account, input.buyerSessionId, input.merchantId);
+    if (input.buyerSessionId) {
+      await linkAccountToBuyerSession(account, input.buyerSessionId, input.merchantId);
+    }
+  } catch (error) {
+    await db.buyerAccount.delete({ where: { id: account.id } }).catch(() => undefined);
+    throw error;
   }
 
   return { account: toAccountView(account, "anonymous") };

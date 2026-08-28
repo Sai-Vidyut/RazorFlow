@@ -38,6 +38,15 @@ export function mapRegistrationError(
     };
   }
 
+  if (code === "EMAIL_DELIVERY_FAILED") {
+    return {
+      message:
+        payload.error?.trim() ||
+        "We couldn't send the verification email. Check SMTP settings or try again later.",
+      kind: "server",
+    };
+  }
+
   if (status >= 500) {
     return {
       message: "We couldn't create your account. Please try again.",

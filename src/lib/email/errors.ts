@@ -16,14 +16,9 @@ export function toEmailDeliveryError(error: unknown): EmailDeliveryError {
     candidate.responseCode === 535;
 
   if (authFailure) {
-    const devHint =
-      process.env.NODE_ENV !== "production"
-        ? " For Gmail, set SMTP_PASSWORD to a 16-character App Password (Google Account → Security → App passwords)."
-        : "";
-    return new EmailDeliveryError(
-      `We couldn't send the email.${devHint}`,
-      "EMAIL_DELIVERY_FAILED",
-    );
+    const gmailHint =
+      " Check SMTP_USER and SMTP_PASSWORD on Vercel. For Gmail, use a 16-character App Password.";
+    return new EmailDeliveryError(`We couldn't send the email.${gmailHint}`, "EMAIL_DELIVERY_FAILED");
   }
 
   return new EmailDeliveryError(

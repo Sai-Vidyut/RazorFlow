@@ -40,4 +40,13 @@ describe("mapRegistrationError", () => {
     expect(result.kind).toBe("server");
     expect(result.message).toBe("We couldn't create your account. Please try again.");
   });
+
+  it("maps email delivery failures to the server message from the API", () => {
+    const result = mapRegistrationError(503, {
+      error: "We couldn't send the email. Check SMTP settings.",
+      code: "EMAIL_DELIVERY_FAILED",
+    });
+    expect(result.kind).toBe("server");
+    expect(result.message).toBe("We couldn't send the email. Check SMTP settings.");
+  });
 });
