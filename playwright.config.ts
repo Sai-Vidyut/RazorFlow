@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import path from "path";
 
 const root = process.cwd();
+const e2ePort = process.env.PLAYWRIGHT_PORT ?? "3011";
+const e2eBaseUrl = `http://localhost:${e2ePort}`;
 
 dotenv.config({ path: path.join(root, ".env") });
 dotenv.config({ path: path.join(root, ".env.local"), override: true });
@@ -11,23 +13,24 @@ const webServerEnv = Object.fromEntries(
   Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
 );
 webServerEnv.RAZORFLOW_USE_DEV_EMAIL = "1";
+delete webServerEnv.GEMINI_API_KEY;
 
 export default defineConfig({
   testDir: "./e2e",
   globalSetup: "./e2e/global-setup.ts",
   fullyParallel: true,
-  workers: process.env.CI ? 2 : 3,
+  workers: process.env.CI ? 2 : 1,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   timeout: 45_000,
   use: {
-    baseURL: "http://localhost:3010",
+    baseURL: e2eBaseUrl,
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run dev",
-    url: "http://localhost:3010",
-    reuseExistingServer: !process.env.CI,
+    command: `npx next dev --port ${e2ePort}`,
+    url: e2eBaseUrl,
+    reuseExistingServer: false,
     timeout: 120_000,
     env: webServerEnv,
   },

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "@prisma/client";
+import { NORTLINE_CATALOG_PRODUCT_COUNT } from "../prisma/northline-catalog";
 import { runAgentWithParsed } from "@/lib/agent/run-agent";
 import { parseIntent } from "@/lib/agent/parse-intent";
 import { createStructuredIntent } from "@/lib/agent/structured-intent";
@@ -45,7 +46,7 @@ describe("RazorFlow persistence slice", () => {
     expect(merchant?.policy?.discountCeilingPct).toBe(12);
 
     const products = await db.product.count({ where: { merchantId: merchant!.id } });
-    expect(products).toBe(4);
+    expect(products).toBe(NORTLINE_CATALOG_PRODUCT_COUNT);
   });
 
   it("creates a session and persists structured intent", async () => {

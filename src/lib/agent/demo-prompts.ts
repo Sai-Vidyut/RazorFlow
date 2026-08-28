@@ -29,6 +29,11 @@ export function pickPrimaryCatalogProduct(catalog: Product[]): Product | undefin
   const primaries = catalog.filter((product) => product.metadata?.catalogRole === "primary");
   const pool = primaries.length > 0 ? primaries : catalog;
 
+  const demoAnchors = pool.filter((product) => product.metadata?.demoPrimary === true);
+  if (demoAnchors.length > 0) {
+    return [...demoAnchors].sort((left, right) => left.sku.localeCompare(right.sku))[0];
+  }
+
   return [...pool].sort((left, right) => right.pricePaise - left.pricePaise)[0];
 }
 

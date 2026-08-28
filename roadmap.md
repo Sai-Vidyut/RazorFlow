@@ -5,8 +5,9 @@
 - Landing that tells the governed-sale story
 - Desk: intent, recommendation, policy, Razorpay (or mock) payment, failure recovery
 - Policies: visible merchant guardrails
-- Admin control plane: overview, orders, payments, recovery, products, activity, insights
-- Playwright coverage of core journeys including recovery
+- Admin control plane: overview, orders, payments, recovery, products, activity, insights, staff
+- Northline Audio ~40-product demo catalog
+- Playwright coverage of core journeys including recovery and account auth
 
 ## Next
 

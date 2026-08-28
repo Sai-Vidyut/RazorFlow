@@ -6,6 +6,7 @@ import {
   ensureVerifiedBuyerForCheckout,
   expectAdminNavLinkVisible,
   prepareE2EBaseline,
+  runDeskAgentWithIntent,
 } from "./helpers/baseline";
 
 test.describe("RazorFlow journeys", () => {
@@ -35,11 +36,7 @@ test.describe("RazorFlow journeys", () => {
   });
 
   test("desk recommends Halo and reaches checkout boundary", async ({ page }) => {
-    await page.goto("/desk");
-    await page.getByTestId("intent-input").fill(
-      "ANC headphones for a 14-hour flight, budget ₹8,500",
-    );
-    await page.getByTestId("run-agent").click();
+    await runDeskAgentWithIntent(page);
     await expect(page.getByTestId("product-name")).toHaveText("Northline Halo ANC", {
       timeout: 15_000,
     });
@@ -74,8 +71,7 @@ test.describe("RazorFlow journeys", () => {
   test("failed payment can be retried", async ({ page }) => {
     test.skip(!isRazorpayConfigured(), "Requires Razorpay test keys for checkout order creation");
 
-    await page.goto("/desk");
-    await page.getByTestId("run-agent").click();
+    await runDeskAgentWithIntent(page);
     await expect(page.getByTestId("authorize")).toBeEnabled({ timeout: 15_000 });
     await ensureVerifiedBuyerForCheckout(page);
     await page.getByTestId("simulate-decline").click();

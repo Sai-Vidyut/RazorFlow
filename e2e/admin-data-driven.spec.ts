@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { isRazorpayConfigured } from "./helpers/env";
-import { authenticateMerchant, ensureVerifiedBuyerForCheckout, prepareE2EBaseline } from "./helpers/baseline";
+import { authenticateMerchant, ensureVerifiedBuyerForCheckout, prepareE2EBaseline, runDeskAgentWithIntent } from "./helpers/baseline";
 
 async function fetchOverviewJson(page: import("@playwright/test").Page) {
   await authenticateMerchant(page.request);
@@ -30,11 +30,7 @@ test.describe("Admin data-driven E2E", () => {
   test("desk commerce flow updates admin metrics and activity", async ({ page }) => {
     const baseline = await fetchOverviewJson(page);
 
-    await page.goto("/desk");
-    await page.getByTestId("intent-input").fill(
-      "ANC headphones for a 14-hour flight, budget ₹8,500",
-    );
-    await page.getByTestId("run-agent").click();
+    await runDeskAgentWithIntent(page);
     await expect(page.getByTestId("product-name")).toHaveText("Northline Halo ANC", {
       timeout: 15_000,
     });

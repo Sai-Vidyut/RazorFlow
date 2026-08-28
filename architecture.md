@@ -123,4 +123,4 @@ NEXT_PUBLIC_RAZORPAY_KEY_ID=
 
 ## Data
 
-Northline Audio seed data demonstrates the pipeline. Seed clears transactional runtime data on each run. New products and categories can be inserted into PostgreSQL without application code changes. The LLM (Phase 3B) must not be trusted with authoritative prices, payment amounts, policy decisions, or payment authorization.
+Northline Audio seed data demonstrates the pipeline with a **40-product catalog** (headphones, earbuds, speakers, soundbars, cases, cables, chargers, adapters). Seed clears transactional runtime data on each run. New products and categories can be inserted into PostgreSQL without application code changes. The LLM (Phase 3B) must not be trusted with authoritative prices, payment amounts, policy decisions, or payment authorization.

@@ -4,7 +4,7 @@ AI merchant commerce agent for the Razorpay Buildathon, AI Growth & Agentic Comm
 
 RazorFlow turns buyer intent into a policy-governed sale on Razorpay. It is not a chatbot.
 
-**Commerce pipeline:** Understand → Decide → Govern → Transact → Recover
+**Commerce pipeline:** Understand → Identify → Decide → Govern → Transact → Recover
 
 ## Stack
 
@@ -16,18 +16,34 @@ RazorFlow turns buyer intent into a policy-governed sale on Razorpay. It is not 
 - Phosphor icons
 - Playwright + Vitest
 
-## Screens
+## Demo merchant: Northline Audio
+
+Northline Audio is the seeded demo storefront: headphones, earbuds, speakers, soundbars, cases, cables, chargers, and accessories. The catalog ships with **40 deterministic products** designed for realistic agent matching (budget tiers, overlapping use cases, attach accessories).
+
+## Surfaces
 
 | Route | Purpose |
 | --- | --- |
 | `/` | Product story and live metrics (this week) |
 | `/desk` | Intent → recommendation → policy → Razorpay payment |
 | `/policies` | Merchant guardrails (read/write) |
-| `/admin` | Merchant control plane: overview, orders, payments, recovery, products, policies, activity, insights |
+| `/admin` | Merchant control plane: overview, orders, payments, recovery, products, policies, activity, insights, staff |
 
 Legacy API: `GET /api/ledger` (merchant-auth JSON for landing metrics). There is no public `/ledger` page.
 
-## Setup
+## Roles
+
+| Role | Capability |
+| --- | --- |
+| **Buyer** | Register, verify email, sign in, run desk sessions, checkout on Razorpay |
+| **Staff** | Buyer access plus `/admin` for orders, products, policies, recovery, and activity |
+| **Administrator** | Staff access plus staff management (bootstrap via `INITIAL_ADMIN_EMAIL`) |
+
+Email verification uses SMTP when configured; otherwise development and test capture mail in a dev outbox (`RAZORFLOW_USE_DEV_EMAIL=1`).
+
+## Local development (PostgreSQL)
+
+RazorFlow is developed and demoed **locally**. Vercel deployment is not part of the current workflow.
 
 ### 1. Install dependencies
 
@@ -66,7 +82,7 @@ Without keys, checkout fails gracefully. Payment success requires server-side si
 
 Webhook endpoint: `POST /api/webhooks/razorpay` (`payment.captured`, `payment.failed`).
 
-### Email verification and admin bootstrap (Phase 12)
+### Email verification and admin bootstrap
 
 Add SMTP settings to `.env.local` for production-like verification emails:
 
@@ -92,7 +108,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-Seed clears all transactional data (sessions, orders, payments, audit events) and preserves merchant, policy, and catalog. Re-running seed does not accumulate transactions.
+Seed clears all transactional data (sessions, orders, payments, audit events) and preserves merchant, policy, and the 40-product catalog. Re-running seed does not accumulate transactions or synthetic GMV.
 
 ### 5. Run the app
 
@@ -104,10 +120,10 @@ The app listens on `http://localhost:3010`.
 
 ## Demo flow
 
-1. Open `/desk`, run the agent on a buyer intent.
+1. Open `/desk`, run the agent on a buyer intent (budget, use case, or product name).
 2. Authorize payment (Razorpay Test Mode or simulate decline).
 3. On failure, recovery evaluates policy and catalog before retry.
-4. Open `/admin` for orders, payments, recovery queue, and audit activity.
+4. Open `/admin` for orders, payments, recovery queue, products, and audit activity.
 
 ## Tests
 
@@ -117,4 +133,6 @@ npm run build
 npm run test:e2e
 ```
 
-E2E uses port 3010. Restart the dev server after schema changes if `reuseExistingServer` serves stale code.
+- **Unit/integration:** Vitest against PostgreSQL (same `DATABASE_URL` as local dev).
+- **E2E:** Playwright starts an isolated Next.js dev server on port **3011** with `RAZORFLOW_USE_DEV_EMAIL=1`. Intent extraction uses the deterministic fallback (Gemini is not loaded in the E2E server). Do not rely on a manually started dev server for E2E.
+- If Next.js reports a single-dev-server lock, stop any running `npm run dev` on port 3010 before `npm run test:e2e`.

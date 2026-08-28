@@ -4,7 +4,9 @@ import {
   BUYER_EMAIL,
   completeDeskAccountAuthUi,
   ensureVerifiedBuyerForCheckout,
+  HALO_FLIGHT_INTENT,
   prepareE2EBaseline,
+  runDeskAgentWithIntent,
   STAFF_EMAIL,
   TEST_PASSWORD,
 } from "./helpers/baseline";
@@ -17,11 +19,7 @@ test.describe("Phase 11 account journeys", () => {
   test("desk recommend → authorize → account auth → checkout continues", async ({ page }) => {
     test.skip(!isRazorpayConfigured(), "Requires Razorpay test keys for checkout order creation");
 
-    await page.goto("/desk");
-    await page.getByTestId("intent-input").fill(
-      "ANC headphones for a 14-hour flight, budget ₹8,500",
-    );
-    await page.getByTestId("run-agent").click();
+    await runDeskAgentWithIntent(page);
     await expect(page.getByTestId("product-name")).toHaveText("Northline Halo ANC", {
       timeout: 15_000,
     });
@@ -35,8 +33,7 @@ test.describe("Phase 11 account journeys", () => {
   });
 
   test("verified buyer does not see Admin and cannot open admin portal", async ({ page }) => {
-    await page.goto("/desk");
-    await page.getByTestId("run-agent").click();
+    await runDeskAgentWithIntent(page);
     await expect(page.getByTestId("product-name")).toHaveText("Northline Halo ANC", {
       timeout: 15_000,
     });
@@ -52,8 +49,7 @@ test.describe("Phase 11 account journeys", () => {
   });
 
   test("verified staff sees Admin and admin portal opens", async ({ page }) => {
-    await page.goto("/desk");
-    await page.getByTestId("run-agent").click();
+    await runDeskAgentWithIntent(page);
     await expect(page.getByTestId("product-name")).toHaveText("Northline Halo ANC", {
       timeout: 15_000,
     });

@@ -13,6 +13,8 @@ export const SEED_POLICIES = {
 export const STAFF_EMAIL = "staff@northlineaudio.com";
 export const BUYER_EMAIL = "buyer@example.com";
 export const TEST_PASSWORD = "NorthlineTest1!";
+/** Stable desk intent that resolves to halo-anc despite catalog ties and Gemini variance. */
+export const HALO_FLIGHT_INTENT = "halo-anc Halo ANC for a 14-hour flight, budget ₹8,500";
 
 async function resolveBuyerSessionId(request: APIRequestContext): Promise<string> {
   const ctxRes = await request.get("/api/desk/context");
@@ -24,7 +26,7 @@ async function resolveBuyerSessionId(request: APIRequestContext): Promise<string
   }
 
   const sessionRes = await request.post("/api/sessions", {
-    data: { rawRequest: "ANC headphones under ₹8,500" },
+    data: { rawRequest: HALO_FLIGHT_INTENT },
   });
   if (!sessionRes.ok()) {
     throw new Error(`Session creation failed: ${sessionRes.status()}`);
@@ -61,7 +63,10 @@ async function verifyLatestEmailViaApi(request: APIRequestContext, email: string
 
   const codeResponse = await request.post("/api/auth/dev/verification-code", { data: { email } });
   if (!codeResponse.ok()) {
-    throw new Error(`Dev verification failed: ${devVerify.status()} / ${codeResponse.status()}`);
+    throw new Error(
+      `Dev verification failed (${devVerify.status()} / ${codeResponse.status()}). ` +
+        "Playwright must start its own dev server with RAZORFLOW_USE_DEV_EMAIL=1 (see playwright.config.ts).",
+    );
   }
   const { code } = (await codeResponse.json()) as { code: string };
   const verify = await request.post("/api/auth/verify-code", { data: { code } });
@@ -163,6 +168,20 @@ export async function resetSeedPolicies(request: APIRequestContext) {
 
 export async function prepareE2EBaseline(page: Page) {
   await page.emulateMedia({ reducedMotion: "reduce" });
+}
+
+/** Fill intent after desk demo prompts load so client fetch does not overwrite the value. */
+export async function runDeskAgentWithIntent(
+  page: Page,
+  intent: string = HALO_FLIGHT_INTENT,
+) {
+  await page.goto("/desk");
+  const input = page.getByTestId("intent-input");
+  await expect(input).toBeVisible();
+  await expect(input).not.toHaveValue("");
+  await input.fill(intent);
+  await expect(input).toHaveValue(intent);
+  await page.getByTestId("run-agent").click();
 }
 
 export async function ensureVerifiedBuyerForCheckout(

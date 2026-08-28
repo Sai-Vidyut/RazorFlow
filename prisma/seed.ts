@@ -1,76 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { clearMerchantTransactionalData } from "@/lib/services/merchant-transactional";
+import {
+  NORTLINE_CATALOG_PRODUCT_COUNT,
+  NORTLINE_SEED_PRODUCTS,
+} from "./northline-catalog";
 
 const db = new PrismaClient();
-
-const SEED_PRODUCTS = [
-  {
-    sku: "halo-anc",
-    name: "Northline Halo ANC",
-    description: "Over-ear hybrid noise cancelling for long haul flights",
-    pricePaise: 749000,
-    costPaise: 512000,
-    category: "headphones",
-    tags: ["anc", "headphones", "flight", "travel", "wireless"],
-    metadata: {
-      features: ["anc", "wireless", "noise-cancelling"],
-      useCases: ["travel", "flight"],
-      catalogRole: "primary",
-    },
-    image: "/products/halo-anc.png",
-    imageAlt: "Matte charcoal Northline Halo over-ear headphones",
-    attachSku: "halo-case",
-    attachRate: 0.41,
-  },
-  {
-    sku: "halo-case",
-    name: "Halo hard case",
-    description: "Crush-resistant travel shell sized for Halo cups",
-    pricePaise: 79000,
-    costPaise: 31000,
-    category: "accessory",
-    tags: ["case", "travel", "accessory"],
-    metadata: {
-      features: ["travel"],
-      useCases: ["travel"],
-      catalogRole: "attach",
-    },
-    image: "/products/halo-case.png",
-    imageAlt: "Charcoal hard-shell headphone travel case",
-  },
-  {
-    sku: "drift-buds",
-    name: "Northline Drift buds",
-    description: "Compact ANC earbuds with a 28-hour case",
-    pricePaise: 299000,
-    costPaise: 184000,
-    category: "earbuds",
-    tags: ["anc", "earbuds", "compact", "commute"],
-    metadata: {
-      features: ["anc", "compact", "wireless"],
-      useCases: ["commute"],
-      catalogRole: "primary",
-    },
-    image: "/products/drift-buds.png",
-    imageAlt: "Charcoal true wireless earbuds in an open charging case",
-  },
-  {
-    sku: "field-speaker",
-    name: "Northline Field speaker",
-    description: "Portable Bluetooth speaker with 12-hour battery",
-    pricePaise: 399000,
-    costPaise: 246000,
-    category: "speaker",
-    tags: ["speaker", "gift", "portable", "bluetooth"],
-    metadata: {
-      features: ["portable", "wireless", "bluetooth"],
-      useCases: ["gift"],
-      catalogRole: "primary",
-    },
-    image: "/products/field-speaker.png",
-    imageAlt: "Compact cylindrical charcoal Bluetooth speaker",
-  },
-];
 
 async function main() {
   const merchant = await db.merchant.upsert({
@@ -105,7 +40,7 @@ async function main() {
     },
   });
 
-  for (const product of SEED_PRODUCTS) {
+  for (const product of NORTLINE_SEED_PRODUCTS) {
     await db.product.upsert({
       where: {
         merchantId_sku: {
@@ -126,7 +61,7 @@ async function main() {
         attachSku: product.attachSku ?? null,
         attachRate: product.attachRate ?? null,
         active: true,
-        inventory: 100,
+        inventory: product.inventory,
       },
       create: {
         merchantId: merchant.id,
@@ -143,7 +78,7 @@ async function main() {
         attachSku: product.attachSku ?? null,
         attachRate: product.attachRate ?? null,
         active: true,
-        inventory: 100,
+        inventory: product.inventory,
       },
     });
   }
@@ -158,7 +93,9 @@ async function main() {
     });
   }
 
-  console.log("Seeded Northline Audio merchant, policy, and catalog.");
+  console.log(
+    `Seeded Northline Audio merchant, policy, and ${NORTLINE_CATALOG_PRODUCT_COUNT} catalog products.`,
+  );
   console.log("Cleared synthetic buyer sessions, orders, payments, and audit activity.");
 }
 

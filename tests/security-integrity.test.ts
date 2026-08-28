@@ -9,7 +9,7 @@ import { POST as verifyPaymentRoute } from "@/app/api/payments/verify/route";
 import { GET as policiesRoute, PUT as putPoliciesRoute } from "@/app/api/policies/route";
 import { agentResultToApiResponse, runAgentForSession } from "@/lib/services/agent-run";
 import { runAgentWithParsed } from "@/lib/agent/run-agent";
-import { createStructuredIntent } from "@/lib/agent/structured-intent";
+import { createStructuredIntent, structuredIntentFromDb, structuredIntentToJson } from "@/lib/agent/structured-intent";
 import { db } from "@/lib/db";
 import { getConfiguredDemoMerchantId } from "@/lib/config/merchant";
 import { verifyWebhookSignature } from "@/lib/razorpay/verify";
@@ -65,16 +65,21 @@ function uniqueEventId(label: string) {
   return `evt_${label}_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 }
 
-async function setSessionQuantity(sessionId: string, quantity: number) {
+async function pinSessionPrimarySku(sessionId: string, sku: string, quantity: number) {
   const intentRow = await db.buyerIntent.findUniqueOrThrow({ where: { sessionId } });
-  const structured = intentRow.structuredIntent as Record<string, unknown>;
+  const base = structuredIntentFromDb(intentRow.structuredIntent!);
   await db.buyerIntent.update({
     where: { sessionId },
     data: {
-      structuredIntent: {
-        ...structured,
-        quantity,
-      },
+      structuredIntent: structuredIntentToJson(
+        createStructuredIntent({
+          ...base,
+          query: sku,
+          category: "headphones",
+          quantity,
+          preferences: { features: [], keywords: [] },
+        }),
+      ),
     },
   });
 }
@@ -234,8 +239,8 @@ describe("Phase 3D security and integrity", () => {
   });
 
   it("prices quantity greater than one in the agent decision", async () => {
-    const { sessionId } = await createBuyerSession("ANC headphones under ₹20,000");
-    await setSessionQuantity(sessionId, 2);
+    const { sessionId } = await createBuyerSession("Northline Halo ANC under ₹20,000");
+    await pinSessionPrimarySku(sessionId, "halo-anc", 2);
     const { result, decisionId } = await runAgentForSession(sessionId);
 
     expect(result.status).toBe("ready");
@@ -250,8 +255,8 @@ describe("Phase 3D security and integrity", () => {
   });
 
   it("blocks quantity that exceeds primary inventory", async () => {
-    const { sessionId } = await createBuyerSession("ANC headphones under ₹20,000");
-    await setSessionQuantity(sessionId, 3);
+    const { sessionId } = await createBuyerSession("Northline Halo ANC under ₹20,000");
+    await pinSessionPrimarySku(sessionId, "halo-anc", 3);
     await db.product.update({
       where: { merchantId_sku: { merchantId: MERCHANT_ID, sku: "halo-anc" } },
       data: { inventory: 2 },
@@ -273,14 +278,11 @@ describe("Phase 3D security and integrity", () => {
       orderCapPaise: 900000,
     });
 
-    const { sessionId } = await createBuyerSession("ANC headphones under ₹20,000");
-    await setSessionQuantity(sessionId, 2);
+    const { sessionId } = await createBuyerSession("Northline Halo ANC under ₹20,000");
+    await pinSessionPrimarySku(sessionId, "halo-anc", 2);
 
     const intentRow = await db.buyerIntent.findUniqueOrThrow({ where: { sessionId } });
-    const intent = createStructuredIntent({
-      ...(intentRow.structuredIntent as Omit<ReturnType<typeof createStructuredIntent>, "version">),
-      quantity: 2,
-    });
+    const intent = structuredIntentFromDb(intentRow.structuredIntent!);
     const policies = await getMerchantPoliciesForAgent(MERCHANT_ID);
     const catalog = await getAvailableCatalog(MERCHANT_ID);
     const result = runAgentWithParsed(intent, policies, catalog);
