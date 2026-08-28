@@ -16,7 +16,10 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AccountAuthModal, type AccountAuthMode } from "@/components/auth/account-auth-modal";
 import { AddToCartButton } from "@/components/cart/add-to-cart-button";
-import { ProductResultGrid } from "@/components/cart/product-result-grid";
+import {
+  isSequentialBrowseMode,
+  ProductRecommendationBrowser,
+} from "@/components/desk/product-recommendation-browser";
 import { AgentProcessingView } from "@/components/desk/agent-processing-view";
 import { DeskStageRail } from "@/components/desk/desk-stage-rail";
 import { useAgentProcessingPresentation } from "@/components/desk/use-agent-processing";
@@ -25,7 +28,7 @@ import { Money } from "@/components/money";
 import { StatusChip } from "@/components/status-chip";
 import { Button, Panel, Textarea } from "@/components/ui/design-system";
 import { DeskShell } from "@/components/shell/desk-shell";
-import { type AgentResult, type PolicyVerdict, type Product, type StructuredIntent, intentDisplayNeed, intentMaxBudgetInr, isMultiProductDiscovery } from "@/lib/agent";
+import { type AgentResult, type DiscoverySummary, type PolicyVerdict, type Product, type StructuredIntent, intentDisplayNeed, intentMaxBudgetInr } from "@/lib/agent";
 import type { DemoPrompt } from "@/lib/agent/demo-prompts";
 import { useCart } from "@/hooks/use-cart";
 import { openRazorpayCheckout } from "@/lib/razorpay/checkout";
@@ -38,6 +41,7 @@ type AgentApiResponse = {
   primary: Product | null;
   attach: Product | null;
   results: Product[];
+  discoverySummary: DiscoverySummary | null;
   discountPct: number;
   subtotal: number;
   marginPct: number;
@@ -566,7 +570,12 @@ export function DeskApp() {
                         </p>
                       </div>
                     ) : (
-                      <DecisionBody result={result} sessionId={sessionId} onCartChange={() => void refreshCart()} />
+                      <DecisionBody
+                        result={result}
+                        sessionId={sessionId}
+                        cartSkus={new Set(cart.lines.map((line) => line.sku))}
+                        onCartChange={() => void refreshCart()}
+                      />
                     )}
                   </motion.div>
                 )}
@@ -755,6 +764,7 @@ function mapApiResponseToAgentResult(payload: AgentApiResponse): AgentResult {
     primary: payload.primary,
     attach: payload.attach,
     results: payload.results ?? (payload.primary ? [payload.primary] : []),
+    discoverySummary: payload.discoverySummary ?? null,
     discountPct: payload.discountPct,
     subtotal: payload.subtotal,
     marginPct: payload.marginPct,
@@ -789,26 +799,28 @@ function EmptyDecision() {
 function DecisionBody({
   result,
   sessionId,
+  cartSkus,
   onCartChange,
 }: {
   result: AgentResult;
   sessionId: string | null;
+  cartSkus: Set<string>;
   onCartChange?: () => void;
 }) {
   if (!result.primary) return null;
 
-  const multi = isMultiProductDiscovery(result.intent) && result.results.length > 1;
-
-  if (multi) {
+  if (isSequentialBrowseMode(result)) {
     return (
-      <div>
-        <p className="text-sm text-muted">
-          {result.explanations[0]?.reason ?? `${result.results.length} options matched your request.`}
-        </p>
-        <ProductResultGrid products={result.results} sessionId={sessionId} onAdded={onCartChange} />
-      </div>
+      <ProductRecommendationBrowser
+        result={result}
+        sessionId={sessionId}
+        cartSkus={cartSkus}
+        onCartChange={onCartChange}
+      />
     );
   }
+
+  const inCart = cartSkus.has(result.primary.sku);
 
   return (
     <div>
@@ -829,7 +841,12 @@ function DecisionBody({
             <Money value={result.primary.price} />
           </p>
           <div className="mt-4">
-            <AddToCartButton sessionId={sessionId} sku={result.primary.sku} onAdded={onCartChange} />
+            <AddToCartButton
+              sessionId={sessionId}
+              sku={result.primary.sku}
+              inCart={inCart}
+              onAdded={onCartChange}
+            />
           </div>
         </div>
       </article>
@@ -871,7 +888,7 @@ function DecisionBody({
             </p>
             <p className="mt-1 text-sm text-ink-soft">{result.explanations[1]?.reason}</p>
           </div>
-          <AddToCartButton sessionId={sessionId} sku={result.attach.sku} onAdded={onCartChange} />
+          <AddToCartButton sessionId={sessionId} sku={result.attach.sku} inCart={cartSkus.has(result.attach.sku)} onAdded={onCartChange} />
         </div>
       ) : null}
     </div>

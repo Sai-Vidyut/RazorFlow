@@ -39,12 +39,22 @@ export type AgentExplanation = {
 /** @deprecated Use StructuredIntent — kept as alias for gradual import migration */
 export type ParsedIntent = StructuredIntent;
 
+export type DiscoverySummary = {
+  totalMatches: number;
+  returnedCount: number;
+  requestedCount: number | null;
+  sortBy: StructuredIntent["discovery"]["sortBy"];
+  sortOrder: StructuredIntent["discovery"]["sortOrder"];
+  category: string | null;
+};
+
 export type AgentResult = {
   status: "ready" | "blocked" | "empty";
   intent: StructuredIntent;
   primary: Product | null;
   attach: Product | null;
   results: Product[];
+  discoverySummary: DiscoverySummary | null;
   discountPct: number;
   subtotal: number;
   marginPct: number;

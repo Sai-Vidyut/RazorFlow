@@ -128,7 +128,7 @@ The app listens on `http://localhost:3010`.
 ## Demo flow
 
 1. Open `/desk`, run the agent on a buyer intent (budget, use case, product count, or sort order).
-2. Review primary or multi-result cards; optionally add suggested accessories with **Add to cart** (never auto-added).
+2. When multiple matches are found, browse options one at a time with **Next product**; add only what you want with **Add to cart** (never auto-added).
 3. Open **Cart** from the top bar, adjust quantities, then authorize payment (Razorpay Test Mode or simulate decline).
 4. On failure, recovery evaluates policy and catalog before retry.
 5. Open `/admin` for orders, payments, recovery queue, products, and audit activity.

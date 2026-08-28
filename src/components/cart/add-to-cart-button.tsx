@@ -9,6 +9,7 @@ type AddToCartButtonProps = {
   sku: string;
   label?: string;
   className?: string;
+  inCart?: boolean;
   onAdded?: () => void;
 };
 
@@ -17,12 +18,13 @@ export function AddToCartButton({
   sku,
   label = "Add to cart",
   className = "",
+  inCart = false,
   onAdded,
 }: AddToCartButtonProps) {
   const [state, setState] = useState<"idle" | "loading" | "added">("idle");
 
   async function handleClick() {
-    if (!sessionId || state === "loading") return;
+    if (!sessionId || state === "loading" || inCart) return;
     setState("loading");
     try {
       const response = await fetch("/api/cart", {
@@ -44,7 +46,8 @@ export function AddToCartButton({
     }
   }
 
-  const disabled = !sessionId || state === "loading";
+  const showAdded = inCart || state === "added";
+  const disabled = !sessionId || state === "loading" || inCart;
 
   return (
     <button
@@ -54,10 +57,10 @@ export function AddToCartButton({
       onClick={() => void handleClick()}
       className={`rf-btn rf-motion-colors inline-flex min-h-10 items-center justify-center gap-2 rounded-[8px] border border-line bg-surface px-3 text-sm font-medium text-ink hover:border-accent hover:text-accent disabled:opacity-50 ${className}`}
     >
-      {state === "added" ? (
+      {showAdded ? (
         <>
           <Check className="size-4 text-success" aria-hidden />
-          Added
+          Added to cart
         </>
       ) : (
         <>

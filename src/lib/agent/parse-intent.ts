@@ -1,29 +1,38 @@
 import { rupeesToPaise } from "@/lib/format";
+import { inferCategoryFromQuery } from "./category-match";
 import { createStructuredIntent, type StructuredIntent } from "./structured-intent";
 import type { Product } from "./types";
 
+/** Order matters: soundbar before speaker; earphones before generic patterns. */
 const CATEGORY_PATTERNS: Array<[RegExp, string]> = [
-  [/earbud|buds|in-ear/i, "earbuds"],
-  [/speaker|bluetooth speaker|soundbar/i, "speaker"],
-  [/headphone|over-ear|headset/i, "headphones"],
+  [/\bsoundbar|\btv soundbar/i, "soundbar"],
+  [/earphone|earbud|in-ear|\bbuds\b|wireless earphone/i, "earbuds"],
+  [/headphone|over-ear|headset|over ear/i, "headphones"],
+  [/\bbluetooth speaker|\bportable speaker|\bspeakers?\b/i, "speaker"],
   [/backpack|bag|pack/i, "outdoor"],
-  [/case|shell/i, "accessory"],
+  [/case|shell|cable|charger/i, "accessory"],
 ];
 
 const SORT_DESC_PATTERNS =
-  /most expensive first|highest price|high to low|price descending|descending price|expensive to cheapest|most expensive to cheapest/i;
+  /most expensive first|highest price|high to low|price descending|descending price|expensive to cheapest|most expensive to cheapest|expensive first/i;
 const SORT_ASC_PATTERNS =
-  /cheapest first|lowest price|low to high|price ascending|ascending price|cheapest to most expensive|from cheapest/i;
+  /cheapest first|lowest price|low to high|price ascending|ascending price|cheapest to most expensive|from cheapest|price wise|price-wise|sort.*price/i;
 const SORT_BY_PRICE_PATTERNS =
   /sorted by price|sort by price|sorted cheapest|sort cheapest|by price|price order/i;
 
-function parseDiscovery(text: string): Partial<StructuredIntent["discovery"]> {
+const BROWSE_CUES =
+  /\b(options|sort them|sort these|compare|at least \d+|\d+\s+or more|some options|give me some|show me \d+|give me \d+|\d+\s+(options|products|items))\b/i;
+
+const SINGLE_RECOMMENDATION =
+  /\b(recommend|top pick|for a flight|for travel|for gift|for hiking)\b/i;
+
+function parseDiscovery(text: string, category: string | null): Partial<StructuredIntent["discovery"]> {
   const discovery: Partial<StructuredIntent["discovery"]> = {};
 
   const exactCountMatch =
     text.match(/\bshow me\s+(\d+)\b/i) ??
     text.match(/\bgive me\s+(\d+)\b/i) ??
-    text.match(/\b(\d+)\s+(options|products|earbuds|headphones|speakers|items)\b/i);
+    text.match(/\b(\d+)\s+(options|products|earbuds|headphones|speakers|earphones|items)\b/i);
   if (exactCountMatch) {
     discovery.resultCount = Number(exactCountMatch[1]);
     discovery.minResults = Number(exactCountMatch[1]);
@@ -35,7 +44,10 @@ function parseDiscovery(text: string): Partial<StructuredIntent["discovery"]> {
     discovery.resultCount = null;
   }
 
-  if (/\bsome\b/i.test(text) && !discovery.resultCount && !discovery.minResults) {
+  if (/\bsome\b/i.test(text) && /\b(options|products|choices)\b/i.test(text)) {
+    discovery.minResults = 3;
+    discovery.resultCount = null;
+  } else if (/\bsome\b/i.test(text) && category && !discovery.resultCount) {
     discovery.minResults = 3;
     discovery.resultCount = null;
   }
@@ -43,6 +55,40 @@ function parseDiscovery(text: string): Partial<StructuredIntent["discovery"]> {
   if (SORT_BY_PRICE_PATTERNS.test(text) || SORT_ASC_PATTERNS.test(text) || SORT_DESC_PATTERNS.test(text)) {
     discovery.sortBy = "price";
     discovery.sortOrder = SORT_DESC_PATTERNS.test(text) ? "desc" : "asc";
+  }
+
+  if (
+    category &&
+    (discovery.sortBy === "price" || /\bsort them\b|\bsort these\b/i.test(text)) &&
+    BROWSE_CUES.test(text)
+  ) {
+    if (!discovery.resultCount) {
+      discovery.minResults = Math.max(discovery.minResults ?? 1, 3);
+    }
+  }
+
+  if (category && discovery.sortBy === "price" && /\bsort them\b|\bprice wise\b|\bprice-wise\b/i.test(text)) {
+    if (!discovery.resultCount) {
+      discovery.minResults = Math.max(discovery.minResults ?? 1, 3);
+    }
+  }
+
+  const wantsBrowse = BROWSE_CUES.test(text) || (discovery.sortBy === "price" && category != null);
+  const wantsSingle =
+    !wantsBrowse &&
+    (SINGLE_RECOMMENDATION.test(text) || /\bthe best\b/i.test(text)) &&
+    !/\d+\s+(earbuds|headphones|speakers|products|options)/i.test(text);
+
+  if (wantsSingle) {
+    discovery.resultCount = null;
+    discovery.minResults = 1;
+  } else if (
+    category &&
+    /\bshow me\b/i.test(text) &&
+    !/\b(the best|recommend|top pick)\b/i.test(text) &&
+    !discovery.resultCount
+  ) {
+    discovery.minResults = Math.max(discovery.minResults ?? 1, 3);
   }
 
   return discovery;
@@ -57,16 +103,25 @@ function parseBudget(text: string): number | null {
   return budgetMatch ? Number(budgetMatch[1].replaceAll(",", "")) : null;
 }
 
+function parseCategory(text: string): string | null {
+  for (const [pattern, mappedCategory] of CATEGORY_PATTERNS) {
+    if (pattern.test(text)) {
+      return mappedCategory;
+    }
+  }
+  return inferCategoryFromQuery(text);
+}
+
 /**
  * Phase 3A deterministic intent parser.
  * Converts natural language into generic StructuredIntent without Northline-specific fields.
- * Phase 3B will replace this with an LLM-backed parser using the same output contract.
  */
 export function parseIntent(raw: string): StructuredIntent {
   const text = raw.trim();
   const budgetInr = parseBudget(text);
   const discountMatch = text.match(/(\d{1,2})\s*%/);
-  const discovery = parseDiscovery(text);
+  const category = parseCategory(text);
+  const discovery = parseDiscovery(text, category);
 
   const features: string[] = [];
   const keywords: string[] = [];
@@ -95,14 +150,6 @@ export function parseIntent(raw: string): StructuredIntent {
   }
   if (/hiking|trek/i.test(text)) {
     keywords.push("hiking");
-  }
-
-  let category: string | null = null;
-  for (const [pattern, mappedCategory] of CATEGORY_PATTERNS) {
-    if (pattern.test(text)) {
-      category = mappedCategory;
-      break;
-    }
   }
 
   return createStructuredIntent({

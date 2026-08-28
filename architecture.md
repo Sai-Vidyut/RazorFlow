@@ -13,7 +13,9 @@ Structured Buyer Intent          (Understand)
       ↓
 Discovery: filter → sort → take N   (Identify; deterministic)
       ↓
-Agent recommendation + optional attach suggestion (not in cart)
+Agent recommendation browser (one option at a time when multiple matches)
+      ↓
+Explicit Add to cart only (recommendation ≠ cart item)
       ↓
 User-controlled Cart (CartLine per BuyerSession)
       ↓
@@ -85,16 +87,29 @@ Buyer and merchant API routes enforce session/order ownership and merchant scopi
 `src/lib/agent/` is split into:
 
 1. **Intent** (`intent.ts`, `gemini-intent-provider.ts`, `parse-intent.ts`, `structured-intent.ts`) — Gemini structured extraction with validated `StructuredIntent` JSON and deterministic fallback
-2. **Matching** (`match-catalog.ts`, `discover-catalog.ts`) — ranks and filters catalog products using category, metadata, tags, price constraints, requested result count, and deterministic price sorting. Does not read raw natural language for arithmetic.
+2. **Matching** (`match-catalog.ts`, `discover-catalog.ts`, `category-match.ts`) — deterministic pipeline: normalize category → filter by category (strict, no cross-category padding) → budget → availability → rank → sort → take N. Gemini never overrides an explicit category constraint.
 3. **Policy + decision** (`run-agent.ts`) — deterministic margin, budget, discount, order-cap guardrails. Cross-sell accessories are suggested only; they are never added to checkout totals automatically.
 
 Execution runs on the server via `POST /api/agent/run`. Stored session intent is the source of truth at agent run time.
+
+## Multi-product discovery and Agent Decision UI
+
+When discovery returns more than one product, the desk **Agent Decision** panel becomes a sequential browser:
+
+- Shows **Option X of Y** with image, name, description, price
+- **Previous** / **Next product** navigation (local `currentIndex` only; no re-run, no cart mutation)
+- Final option shows **That's all the matching options**
+- Partial matches communicate when fewer products exist than requested (never padded with unrelated categories)
+- Single-intent prompts (e.g. flight headphones) still show one primary recommendation
+
+Sorting runs **after** category and budget filters. Example: earbuds under ₹5000, cheapest first → filter earbuds → filter price → sort ascending → take N.
 
 ## Cart
 
 `CartLine` rows belong to a `BuyerSession` (anonymous buyers supported). Items enter the cart only via explicit buyer action (`POST /api/cart`).
 
-- Agent **primary** and **multi-result** cards expose **Add to cart**
+- Agent recommendations expose **Add to cart**; browsing options does not modify the cart
+- Already-in-cart products show **Added to cart**
 - **Suggested accessories** are optional; they do not affect subtotals until added
 - Checkout uses `POST /api/checkout` with `{ sessionId, source: "cart" }` after policy validation on cart contents
 - Orders persist `OrderLineItem` rows for multi-SKU audit; `amountPaise` remains the server-computed cart total

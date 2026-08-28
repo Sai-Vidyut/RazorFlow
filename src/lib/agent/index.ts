@@ -1,6 +1,7 @@
 export type {
   AgentExplanation,
   AgentResult,
+  DiscoverySummary,
   MerchantPolicies,
   ParsedIntent,
   PolicyVerdict,
@@ -23,7 +24,8 @@ export {
 export { extractIntent, parseIntent, setIntentProviderForTests } from "./intent";
 export { GeminiIntentProvider, createGeminiIntentProvider } from "./gemini-intent-provider";
 export { runAgentWithParsed } from "./run-agent";
-export { discoverProducts, isMultiProductDiscovery, DEFAULT_MULTI_RESULT_COUNT } from "./discover-catalog";
+export { discoverProducts, discoverProductsWithMeta, isMultiProductDiscovery, DEFAULT_MULTI_RESULT_COUNT, MAX_DISCOVERY_RESULTS } from "./discover-catalog";
+export { normalizeIntentCategory, productMatchesCategory, inferCategoryFromQuery } from "./category-match";
 export { rankProducts, scoreProduct, recommendationReason } from "./match-catalog";
 export { buildDemoPrompts, type DemoPrompt } from "./demo-prompts";
 export { findProduct, marginPct } from "./parse-intent";

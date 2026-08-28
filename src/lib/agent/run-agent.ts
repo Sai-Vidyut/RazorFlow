@@ -1,4 +1,4 @@
-import { discoverProducts, isMultiProductDiscovery } from "./discover-catalog";
+import { discoverProductsWithMeta, isMultiProductDiscovery } from "./discover-catalog";
 import { findProduct, marginPct } from "./parse-intent";
 import { rankProducts, recommendationReason } from "./match-catalog";
 import type { StructuredIntent } from "./structured-intent";
@@ -25,6 +25,7 @@ function insufficientInventoryResult(
     primary,
     attach: null,
     results: [primary],
+    discoverySummary: null,
     discountPct: 0,
     subtotal: primary.price * quantity,
     marginPct: marginPct(primary.price, primary.cost),
@@ -55,6 +56,7 @@ function emptyResult(intent: StructuredIntent, maxBudgetInr: number | null): Age
     primary: null,
     attach: null,
     results: [],
+    discoverySummary: null,
     discountPct: 0,
     subtotal: 0,
     marginPct: 0,
@@ -82,9 +84,17 @@ export function runAgentWithParsed(
   const explanations: AgentExplanation[] = [];
   const policiesOut: AgentResult["policies"] = [];
 
-  const discovered = discoverProducts(intent, catalog);
-  const primary = discovered[0] ?? null;
-  const results = discovered;
+  const discovery = discoverProductsWithMeta(intent, catalog);
+  const primary = discovery.products[0] ?? null;
+  const results = discovery.products;
+  const discoverySummary = {
+    totalMatches: discovery.totalMatches,
+    returnedCount: discovery.returnedCount,
+    requestedCount: discovery.requestedCount,
+    sortBy: discovery.sortBy,
+    sortOrder: discovery.sortOrder,
+    category: discovery.category,
+  };
 
   if (!primary) {
     return emptyResult(intent, maxBudgetInr);
@@ -107,6 +117,7 @@ export function runAgentWithParsed(
       primary,
       attach: null,
       results,
+      discoverySummary,
       discountPct: 0,
       subtotal: primary.price * quantity,
       marginPct: marginPct(primary.price, primary.cost),
@@ -129,7 +140,7 @@ export function runAgentWithParsed(
   let attach: Product | null = null;
   const minAttachRate = policies.minAttachRatePct / 100;
   if (
-    !isMultiProductDiscovery(intent) &&
+    !isMultiProductDiscovery(intent, results.length) &&
     policies.allowCrossSell &&
     primary.attachSku &&
     (primary.attachRate ?? 0) >= minAttachRate
@@ -193,6 +204,7 @@ export function runAgentWithParsed(
       primary,
       attach: null,
       results,
+      discoverySummary,
       discountPct,
       subtotal: primaryLine,
       marginPct: marginPct(primaryLine, primary.cost * quantity),
@@ -216,6 +228,7 @@ export function runAgentWithParsed(
       primary,
       attach: null,
       results,
+      discoverySummary,
       discountPct,
       subtotal: primaryLine,
       marginPct: margin,
@@ -232,10 +245,17 @@ export function runAgentWithParsed(
     };
   }
 
-  if (isMultiProductDiscovery(intent)) {
+  if (isMultiProductDiscovery(intent, results.length)) {
+    const requested = discoverySummary.requestedCount;
+    const partial =
+      requested != null && results.length < requested
+        ? ` Only ${results.length} matching options are available in catalog.`
+        : discoverySummary.totalMatches > results.length
+          ? ` Showing ${results.length} of ${discoverySummary.totalMatches} matches.`
+          : "";
     explanations.unshift({
       decision: "Products matched",
-      reason: `Found ${results.length} catalog options for this request.`,
+      reason: `${results.length} catalog option${results.length === 1 ? "" : "s"} matched your request.${partial}`,
       evidence: results.map((product) => product.name).join(", "),
     });
   } else {
@@ -253,6 +273,7 @@ export function runAgentWithParsed(
     primary,
     attach,
     results,
+    discoverySummary,
     discountPct,
     subtotal,
     marginPct: margin,

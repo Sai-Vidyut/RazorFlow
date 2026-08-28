@@ -12,6 +12,7 @@ export {
   isMultiProductDiscovery,
   type AgentExplanation,
   type AgentResult,
+  type DiscoverySummary,
   type ParsedIntent,
   type StructuredIntent,
   type PolicyVerdict,
