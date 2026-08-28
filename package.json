@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3010",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && prisma migrate deploy && tsx scripts/ensure-demo-seed.ts && next build",
     "start": "next start --port 3010",
     "lint": "eslint",
     "test": "vitest run",
