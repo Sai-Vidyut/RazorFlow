@@ -7,10 +7,19 @@ import { AccountError, resendVerificationCode } from "@/lib/services/buyer-accou
 export async function POST(request: Request) {
   try {
     const account = await requireAuthenticatedAccount(request);
-    await resendVerificationCode(account.id);
+    const result = await resendVerificationCode(account.id);
+    if (!result.sent) {
+      return NextResponse.json({
+        message: "Email is already verified",
+        email: account.email,
+        alreadyVerified: true,
+        sent: false,
+      });
+    }
     return NextResponse.json({
       message: "Verification code sent",
       email: account.email,
+      sent: true,
     });
   } catch (error) {
     if (error instanceof EmailDeliveryError) {

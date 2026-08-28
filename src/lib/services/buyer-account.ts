@@ -100,6 +100,10 @@ async function invalidateVerificationCodes(accountId: string): Promise<void> {
 }
 
 async function createAndSendVerificationCode(account: BuyerAccount): Promise<void> {
+  if (account.emailVerifiedAt) {
+    return;
+  }
+
   const latestSent = await db.accountVerificationCode.findFirst({
     where: { accountId: account.id },
     orderBy: { createdAt: "desc" },
@@ -267,6 +271,13 @@ export async function registerAccount(input: {
     },
   });
   if (existing) {
+    if (existing.emailVerifiedAt) {
+      throw new AccountError(
+        "An account already exists for this email. Log in instead.",
+        409,
+        "REGISTRATION_FAILED",
+      );
+    }
     throw new AccountError(
       "Unable to create account. Check your details or sign in.",
       409,
@@ -348,6 +359,15 @@ export async function loginAccount(input: {
 }
 
 export async function verifyEmailWithCode(accountId: string, rawCode: string): Promise<AccountView> {
+  const existingAccount = await db.buyerAccount.findUnique({ where: { id: accountId } });
+  if (!existingAccount) {
+    throw new AccountError("Account not found", 404);
+  }
+  if (existingAccount.emailVerifiedAt) {
+    const capability = await resolveAccountCapability(existingAccount.merchantId, existingAccount);
+    return toAccountView(existingAccount, capability);
+  }
+
   const code = rawCode.trim();
   if (!/^\d{6}$/.test(code)) {
     throw new AccountError("Enter the 6-digit verification code", 400, "INVALID_CODE");
@@ -388,16 +408,17 @@ export async function verifyEmailWithCode(accountId: string, rawCode: string): P
   return toAccountView(account, capability);
 }
 
-export async function resendVerificationCode(accountId: string): Promise<void> {
+export async function resendVerificationCode(accountId: string): Promise<{ sent: boolean }> {
   const account = await db.buyerAccount.findUnique({ where: { id: accountId } });
   if (!account) {
     throw new AccountError("Account not found", 404);
   }
   if (account.emailVerifiedAt) {
-    throw new AccountError("Email is already verified", 400, "ALREADY_VERIFIED");
+    return { sent: false };
   }
 
   await createAndSendVerificationCode(account);
+  return { sent: true };
 }
 
 export async function changeAccountEmail(input: {

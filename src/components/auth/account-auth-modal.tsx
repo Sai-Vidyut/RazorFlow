@@ -50,6 +50,7 @@ export function AccountAuthModal({
   );
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
+  const [verificationEmailSent, setVerificationEmailSent] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useBodyScrollLock(open);
@@ -63,8 +64,35 @@ export function AccountAuthModal({
       setMode(initialMode);
       setError(null);
       setRegistrationErrorKind(null);
+      setVerificationEmailSent(initialMode === "register");
     }
   }, [open, initialMode]);
+
+  useEffect(() => {
+    if (!open || mode !== "verify-code") return;
+
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/session", { credentials: "include" });
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          emailVerified?: boolean;
+          account?: { emailVerified?: boolean; email?: string };
+          email?: string | null;
+        };
+        const verified =
+          payload.account?.emailVerified === true || payload.emailVerified === true;
+        if (!verified) return;
+
+        setPendingEmail(payload.account?.email ?? payload.email ?? pendingEmail);
+        setMode("verified");
+        onAuthStateChange?.();
+        onAuthenticated?.();
+      } catch {
+        // Ignore session probe failures; user can still enter a code manually.
+      }
+    })();
+  }, [open, mode, onAuthStateChange, onAuthenticated]);
 
   useEffect(() => {
     if (!open) return;
@@ -119,6 +147,7 @@ export function AccountAuthModal({
       }
       setPendingEmail(payload.account?.email ?? email);
       setVerificationCode("");
+      setVerificationEmailSent(true);
       setMode("verify-code");
       onAuthStateChange?.();
     } catch {
@@ -143,14 +172,18 @@ export function AccountAuthModal({
       const payload = (await response.json()) as {
         error?: string;
         account?: { email: string; emailVerified: boolean; capability: string };
+        identity?: { emailVerified: boolean };
       };
       if (!response.ok) {
         throw new Error(payload.error ?? "Could not sign in");
       }
       onAuthStateChange?.();
-      if (!payload.account?.emailVerified) {
+      const verified =
+        payload.account?.emailVerified === true || payload.identity?.emailVerified === true;
+      if (!verified) {
         setPendingEmail(payload.account?.email ?? email);
         setVerificationCode("");
+        setVerificationEmailSent(false);
         setMode("verify-code");
         return;
       }
@@ -219,11 +252,23 @@ export function AccountAuthModal({
         method: "POST",
         credentials: "include",
       });
-      const payload = (await response.json()) as { error?: string; email?: string };
+      const payload = (await response.json()) as {
+        error?: string;
+        email?: string;
+        alreadyVerified?: boolean;
+        sent?: boolean;
+      };
       if (!response.ok) {
         throw new Error(payload.error ?? "Could not resend verification code");
       }
+      if (payload.alreadyVerified) {
+        setMode("verified");
+        onAuthStateChange?.();
+        onAuthenticated?.();
+        return;
+      }
       setPendingEmail(payload.email ?? pendingEmail);
+      setVerificationEmailSent(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not resend verification code");
     } finally {
@@ -279,7 +324,9 @@ export function AccountAuthModal({
                 </h2>
                 <p className="mt-1 text-sm text-muted">
                   {mode === "verify-code"
-                    ? "We've sent a 6-digit verification code to your email. Enter it below to continue."
+                    ? verificationEmailSent
+                      ? "We've sent a 6-digit verification code to your email. Enter it below to continue."
+                      : "Enter the 6-digit code from your email, or request a new one below."
                     : mode === "register"
                       ? "Create a persistent buyer account for Northline Audio."
                       : mode === "login"

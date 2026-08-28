@@ -133,6 +133,40 @@ describe("Buyer accounts and persistent auth", () => {
     expect(payload.error).toMatch(/unable to create account/i);
   });
 
+  it("does not send verification email for already verified accounts", async () => {
+    clearDevOutbox();
+    const email = "verified-no-resend@example.com";
+    const { authSessionId } = await registerAndVerifyAccount({ email });
+
+    clearDevOutbox();
+    const resend = await resendVerificationRoute(
+      new Request("http://localhost/api/auth/resend-verification", {
+        method: "POST",
+        headers: accountAuthHeaders(authSessionId),
+      }),
+    );
+    expect(resend.status).toBe(200);
+    const payload = (await resend.json()) as { alreadyVerified?: boolean; sent?: boolean };
+    expect(payload.alreadyVerified).toBe(true);
+    expect(payload.sent).toBe(false);
+    expect(findLatestDevEmailTo(email)).toBeUndefined();
+
+    clearDevOutbox();
+    const duplicate = await registerRoute(
+      new Request("http://localhost/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password: TEST_PASSWORD,
+          passwordConfirmation: TEST_PASSWORD,
+        }),
+      }),
+    );
+    expect(duplicate.status).toBe(409);
+    expect(findLatestDevEmailTo(email)).toBeUndefined();
+  });
+
   it("logs in verified buyers and rejects incorrect passwords", async () => {
     const { sessionId, authSessionId } = await registerAndVerifyAccount({
       email: "login-buyer@example.com",
@@ -255,6 +289,18 @@ describe("Buyer accounts and persistent auth", () => {
     })();
 
     const code = verificationCodeForEmail("verify-code@example.com");
+    const expired = await verifyCodeRoute(
+      new Request("http://localhost/api/auth/verify-code", {
+        method: "POST",
+        headers: {
+          ...accountAuthHeaders(authSessionId),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code: "999999" }),
+      }),
+    );
+    expect(expired.status).toBe(400);
+
     const ok = await verifyCodeRoute(
       new Request("http://localhost/api/auth/verify-code", {
         method: "POST",
@@ -277,27 +323,9 @@ describe("Buyer accounts and persistent auth", () => {
         body: JSON.stringify({ code }),
       }),
     );
-    expect(reused.status).toBe(400);
-
-    const account = await db.buyerAccount.findFirst({ where: { emailNormalized: "verify-code@example.com" } });
-    await db.accountVerificationCode.create({
-      data: {
-        accountId: account!.id,
-        codeHash: "0000000000000000000000000000000000000000000000000000000000000000",
-        expiresAt: new Date(Date.now() - 1000),
-      },
-    });
-    const expired = await verifyCodeRoute(
-      new Request("http://localhost/api/auth/verify-code", {
-        method: "POST",
-        headers: {
-          ...accountAuthHeaders(authSessionId),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code: "999999" }),
-      }),
-    );
-    expect(expired.status).toBe(400);
+    expect(reused.status).toBe(200);
+    const reusedPayload = (await reused.json()) as { account?: { emailVerified: boolean } };
+    expect(reusedPayload.account?.emailVerified).toBe(true);
   });
 
   it("supports change email, resend verification, and password reset", async () => {
