@@ -64,14 +64,17 @@ body.rf-scroll-lock .rf-app-topbar {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 100dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
+  z-index: 100;
 }
 
 .rf-auth-modal {
   display: flex;
-  max-height: min(88dvh, calc(100dvh - var(--rf-safe-top) - var(--rf-safe-bottom) - 1.5rem));
   width: 100%;
+  max-width: 28rem;
+  max-height: min(88dvh, calc(100dvh - var(--rf-safe-top) - var(--rf-safe-bottom) - 1.5rem));
   flex-direction: column;
   overflow: hidden;
   overscroll-behavior: contain;
@@ -80,7 +83,7 @@ body.rf-scroll-lock .rf-app-topbar {
 }
 
 .rf-auth-modal-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -89,6 +92,34 @@ body.rf-scroll-lock .rf-app-topbar {
 
 .rf-auth-modal-handle {
   display: none;
+  width: 2.5rem;
+  height: 0.25rem;
+  margin: 0.625rem auto 0;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--rf-muted) 55%, transparent);
+}
+
+@media (max-width: 639px) {
+  .rf-auth-overlay {
+    align-items: flex-end;
+    padding:
+      max(0.5rem, var(--rf-safe-top))
+      0
+      0
+      0;
+  }
+
+  .rf-auth-modal {
+    max-height: min(92dvh, calc(100dvh - var(--rf-safe-top) - 0.5rem));
+    margin-block: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .rf-auth-modal-handle {
+    display: block;
+  }
 }
 
 .rf-auth-close {

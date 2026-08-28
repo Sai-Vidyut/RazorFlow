@@ -1,8 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { X } from "@phosphor-icons/react";
+import { CheckCircle, X } from "@phosphor-icons/react";
 import { PasswordInput } from "@/components/auth/password-input";
 import { Button, Input } from "@/components/ui/design-system";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
@@ -49,8 +50,13 @@ export function AccountAuthModal({
   );
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   useBodyScrollLock(open);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -225,13 +231,13 @@ export function AccountAuthModal({
     }
   }
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open ? (
         <motion.div
-          className="rf-auth-overlay fixed inset-0 z-50 sm:justify-center sm:p-4"
+          className="rf-auth-overlay fixed inset-0 z-[100]"
           initial={reduce ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={reduce ? undefined : { opacity: 0 }}
@@ -255,7 +261,7 @@ export function AccountAuthModal({
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
             <div className="rf-auth-modal-handle" aria-hidden />
-            <div className="rf-auth-modal-body px-5 pb-5 pt-2 sm:px-6 sm:pb-6">
+            <div className="rf-auth-modal-body px-5 pb-6 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>
                 <h2 id="account-auth-title" className="text-lg font-semibold tracking-tight">
@@ -278,7 +284,11 @@ export function AccountAuthModal({
                       ? "Create a persistent buyer account for Northline Audio."
                       : mode === "login"
                         ? "Sign in to authorize checkout."
-                        : null}
+                        : mode === "forgot-password"
+                          ? "We'll email a reset link if an account exists for this address."
+                          : mode === "reset-sent"
+                            ? "Check your inbox for a link to choose a new password."
+                            : null}
                 </p>
               </div>
               <button
@@ -332,11 +342,19 @@ export function AccountAuthModal({
                 <Button type="submit" className="w-full" loading={busy}>
                   Log in
                 </Button>
-                <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                  <button type="button" className="text-accent hover:underline" onClick={() => setMode("register")}>
+                <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <button
+                    type="button"
+                    className="min-h-9 text-left text-accent hover:underline"
+                    onClick={() => setMode("register")}
+                  >
                     Don&apos;t have an account? Create one
                   </button>
-                  <button type="button" className="text-muted hover:text-ink" onClick={() => setMode("forgot-password")}>
+                  <button
+                    type="button"
+                    className="min-h-9 text-left text-muted hover:text-ink sm:text-right"
+                    onClick={() => setMode("forgot-password")}
+                  >
                     Forgot password?
                   </button>
                 </div>
@@ -411,7 +429,7 @@ export function AccountAuthModal({
                     Verify email
                   </Button>
                 </form>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <Button type="button" variant="secondary" loading={busy} onClick={() => void handleResendVerification()}>
                     Resend code
                   </Button>
@@ -421,14 +439,14 @@ export function AccountAuthModal({
                 </div>
                 <button
                   type="button"
-                  className="text-sm text-accent hover:underline"
+                  className="min-h-9 text-sm text-accent hover:underline"
                   onClick={() => {
-                    setMode("register");
+                    setMode("login");
                     setVerificationCode("");
                     setError(null);
                   }}
                 >
-                  Wrong email? Change email
+                  Wrong email? Back to log in
                 </button>
               </div>
             ) : null}
@@ -436,7 +454,8 @@ export function AccountAuthModal({
             {mode === "verified" ? (
               <div className="space-y-4">
                 <p className="flex items-center gap-2 text-sm font-medium text-success">
-                  <span aria-hidden>✓</span> Email verified
+                  <CheckCircle className="size-4 shrink-0" weight="regular" aria-hidden />
+                  Email verified
                 </p>
                 <p className="text-sm text-muted">You can continue with checkout authorization.</p>
                 <Button
@@ -481,6 +500,7 @@ export function AccountAuthModal({
           </motion.div>
         </motion.div>
       ) : null}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
