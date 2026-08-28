@@ -1,0 +1,5 @@
+-- Phase 3B: audit events for Gemini intent extraction
+
+ALTER TYPE "AuditEventType" ADD VALUE 'INTENT_GEMINI_SUCCEEDED';
+ALTER TYPE "AuditEventType" ADD VALUE 'INTENT_GEMINI_FAILED';
+ALTER TYPE "AuditEventType" ADD VALUE 'INTENT_DETERMINISTIC_FALLBACK';

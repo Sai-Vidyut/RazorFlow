@@ -1,0 +1,376 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  CREATED
+  INTENT_PARSED
+  DECISION_MADE
+  BLOCKED
+  EMPTY
+  AUTHORIZED
+  PAYMENT_PENDING
+  PAYMENT_CAPTURED
+  PAYMENT_FAILED
+}
+
+enum OrderStatus {
+  PENDING
+  CREATED
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  CANCELLED
+}
+
+enum AuditEventType {
+  SESSION_CREATED
+  INTENT_PARSED
+  INTENT_GEMINI_SUCCEEDED
+  INTENT_GEMINI_FAILED
+  INTENT_DETERMINISTIC_FALLBACK
+  RECOMMENDATION_MADE
+  CROSS_SELL_PROPOSED
+  POLICY_EVALUATED
+  POLICY_BLOCKED
+  POLICY_ALLOWED
+  DECISION_RECORDED
+  ORDER_CREATED
+  CHECKOUT_STARTED
+  CHECKOUT_ABANDONED
+  PAYMENT_VERIFICATION_ATTEMPTED
+  PAYMENT_VERIFIED
+  PAYMENT_CAPTURED
+  PAYMENT_FAILED
+  PAYMENT_VERIFICATION_FAILED
+  WEBHOOK_RECEIVED
+  RECOVERY_EVALUATED
+  RECOVERY_ALLOWED
+  RECOVERY_BLOCKED
+  RECOVERY_ATTEMPTED
+  RECOVERY_SUCCEEDED
+  RECOVERY_FAILED
+  PRODUCT_CREATED
+  PRODUCT_UPDATED
+  PRODUCT_ACTIVATED
+  PRODUCT_DEACTIVATED
+  PRODUCT_INVENTORY_CHANGED
+  PRODUCT_PRICE_CHANGED
+  POLICY_UPDATED
+}
+
+enum DecisionStatus {
+  READY
+  BLOCKED
+  EMPTY
+}
+
+model Merchant {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products    Product[]
+  policy      Policy?
+  sessions    BuyerSession[]
+  auditEvents AuditEvent[]
+  staffEmails MerchantStaffEmail[]
+  identities  BuyerIdentity[]
+  accounts    BuyerAccount[]
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  merchantId  String
+  sku         String
+  name        String
+  description String
+  category    String
+  pricePaise  Int
+  costPaise   Int
+  inventory   Int      @default(100)
+  metadata    Json     @default("{}")
+  attachSku   String?
+  attachRate  Float?
+  tags        String[]
+  image       String
+  imageAlt    String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  merchant              Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  primaryDecisions      AgentDecision[] @relation("PrimaryProduct")
+  attachDecisions       AgentDecision[] @relation("AttachProduct")
+
+  @@unique([merchantId, sku])
+  @@index([merchantId])
+  @@index([active])
+  @@index([category])
+}
+
+model Policy {
+  id                     String   @id @default(cuid())
+  merchantId             String   @unique
+  discountCeilingPct     Int
+  marginFloorPct         Int
+  orderCapPaise          Int
+  minAttachRatePct       Int      @default(35)
+  allowEvidenceCrossSell Boolean  @default(true)
+  requireBudgetFit       Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+}
+
+model BuyerSession {
+  id         String        @id @default(cuid())
+  merchantId String
+  status     SessionStatus @default(CREATED)
+  rawRequest String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  merchant    Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  intent      BuyerIntent?
+  decisions   AgentDecision[]
+  orders      Order[]
+  auditEvents AuditEvent[]
+  identity    BuyerIdentity?
+
+  @@index([merchantId])
+  @@index([createdAt])
+  @@index([status])
+}
+
+model BuyerIntent {
+  id               String   @id @default(cuid())
+  sessionId        String   @unique
+  structuredIntent Json
+  createdAt        DateTime @default(now())
+
+  session BuyerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+model AgentDecision {
+  id                   String         @id @default(cuid())
+  sessionId            String
+  primaryProductId     String?
+  attachProductId      String?
+  subtotalPaise        Int
+  marginPct            Float
+  attachRevenuePaise   Int
+  recommendationReason String
+  policyAllowed        Boolean
+  policyReason         String?
+  discountPct          Int            @default(0)
+  quantity             Int            @default(1)
+  status               DecisionStatus
+  supersededAt         DateTime?
+  createdAt            DateTime       @default(now())
+
+  session        BuyerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  primaryProduct Product?     @relation("PrimaryProduct", fields: [primaryProductId], references: [id])
+  attachProduct  Product?     @relation("AttachProduct", fields: [attachProductId], references: [id])
+  orders         Order[]
+
+  @@index([sessionId])
+  @@index([sessionId, supersededAt])
+  @@index([createdAt])
+  @@index([policyAllowed])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  sessionId       String
+  decisionId      String
+  amountPaise     Int
+  currency        String      @default("INR")
+  status          OrderStatus @default(PENDING)
+  razorpayOrderId String?     @unique
+  attemptNumber   Int         @default(1)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  session  BuyerSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  decision AgentDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  payments Payment[]
+
+  @@index([sessionId])
+  @@index([decisionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Payment {
+  id                        String        @id @default(cuid())
+  orderId                   String
+  status                    PaymentStatus @default(PENDING)
+  razorpayPaymentId         String?       @unique
+  razorpaySignatureVerified Boolean       @default(false)
+  failureReason             String?
+  capturedAt                DateTime?
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ProcessedWebhook {
+  id        String   @id @default(cuid())
+  eventId   String   @unique
+  eventType String
+  createdAt DateTime @default(now())
+}
+
+model BuyerIdentity {
+  id              String    @id @default(cuid())
+  sessionId       String    @unique
+  merchantId      String
+  accountId       String?
+  email           String
+  emailVerifiedAt DateTime?
+  isStaff         Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  session    BuyerSession               @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  merchant   Merchant                   @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  account    BuyerAccount?              @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  challenges EmailVerificationChallenge[]
+
+  @@index([merchantId, email])
+  @@index([accountId])
+}
+
+enum AccountTokenPurpose {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+model BuyerAccount {
+  id              String    @id @default(cuid())
+  merchantId      String
+  email           String
+  emailNormalized String
+  passwordHash    String
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  merchant     Merchant             @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  identities   BuyerIdentity[]
+  authSessions AccountAuthSession[]
+  tokens       AccountToken[]
+  verificationCodes AccountVerificationCode[]
+
+  @@unique([merchantId, emailNormalized])
+  @@index([merchantId])
+}
+
+model AccountVerificationCode {
+  id         String    @id @default(cuid())
+  accountId  String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  account BuyerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+model AccountAuthSession {
+  id        String   @id @default(cuid())
+  accountId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  account BuyerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([expiresAt])
+}
+
+model AccountToken {
+  id         String              @id @default(cuid())
+  accountId  String
+  purpose    AccountTokenPurpose
+  tokenHash  String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime            @default(now())
+
+  account BuyerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, purpose])
+  @@index([expiresAt])
+}
+
+model EmailVerificationChallenge {
+  id         String    @id @default(cuid())
+  identityId String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  identity BuyerIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+
+  @@index([identityId])
+  @@index([expiresAt])
+}
+
+model MerchantStaffEmail {
+  id         String   @id @default(cuid())
+  merchantId String
+  email      String
+  createdAt  DateTime @default(now())
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@unique([merchantId, email])
+  @@index([merchantId])
+}
+
+model AuditEvent {
+  id         String         @id @default(cuid())
+  sessionId  String?
+  merchantId String?
+  type       AuditEventType
+  actor      String
+  data       Json
+  createdAt  DateTime       @default(now())
+
+  session  BuyerSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  merchant Merchant?     @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([merchantId])
+  @@index([type])
+  @@index([createdAt])
+}

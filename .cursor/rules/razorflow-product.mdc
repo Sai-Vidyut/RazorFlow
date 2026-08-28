@@ -1,0 +1,16 @@
+---
+description: RazorFlow product, agent explanations, and commerce workflow
+alwaysApply: true
+---
+
+# RazorFlow Product
+
+RazorFlow is an AI merchant commerce agent for the Razorpay Buildathon (AI Growth & Agentic Commerce). It is not a chatbot.
+
+Workflow to keep visible: buyer intent → understand → catalog → recommend → upsell/cross-sell → policy check → authorization → Razorpay payment → success/failure → audit → revenue impact.
+
+Every major screen must make these obvious: intent, decision, why, merchant economics, upsell reason, guardrails, payment state, failure recovery, audit, revenue impact.
+
+Agent copy is user-safe only. Show decision, short reason, evidence, policy result, action, outcome. Never expose chain-of-thought or hidden traces.
+
+Demo merchant is Northline Audio. Amounts use `en-IN` INR formatting. Razorpay secrets stay on the server.

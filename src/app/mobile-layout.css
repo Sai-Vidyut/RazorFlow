@@ -1,0 +1,420 @@
+/* Phase 13 — mobile-first layout polish (no business logic changes) */
+
+:root {
+  --rf-safe-top: env(safe-area-inset-top, 0px);
+  --rf-safe-right: env(safe-area-inset-right, 0px);
+  --rf-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --rf-safe-left: env(safe-area-inset-left, 0px);
+  --rf-touch-min: 2.75rem;
+}
+
+html {
+  overflow-x: clip;
+}
+
+body {
+  overflow-x: clip;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ——— Top bar ——— */
+.rf-app-topbar {
+  padding-top: var(--rf-safe-top);
+  padding-left: max(0px, var(--rf-safe-left));
+  padding-right: max(0px, var(--rf-safe-right));
+  will-change: transform;
+}
+
+.rf-app-topbar[data-collapsed="true"] {
+  padding-inline: max(0.75rem, var(--rf-safe-left)) max(0.75rem, var(--rf-safe-right));
+}
+
+.rf-app-topbar-primary .mx-auto {
+  min-width: 0;
+}
+
+.rf-workspace-switch,
+.rf-app-topbar button {
+  min-height: var(--rf-touch-min);
+}
+
+.rf-app-topbar a.rf-workspace-switch {
+  min-width: auto;
+  padding-inline: 0.75rem;
+}
+
+.rf-app-topbar a.rf-nav-item {
+  min-height: var(--rf-touch-min);
+  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+body.rf-scroll-lock .rf-app-topbar {
+  padding-right: max(0px, var(--rf-safe-right));
+}
+
+/* ——— Auth modal / sheets ——— */
+.rf-auth-overlay {
+  padding:
+    max(0.75rem, var(--rf-safe-top))
+    max(0.75rem, var(--rf-safe-right))
+    max(0.75rem, var(--rf-safe-bottom))
+    max(0.75rem, var(--rf-safe-left));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.rf-auth-modal {
+  display: flex;
+  max-height: min(88dvh, calc(100dvh - var(--rf-safe-top) - var(--rf-safe-bottom) - 1.5rem));
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  margin-block: auto;
+  border-radius: var(--rf-radius-glass);
+}
+
+.rf-auth-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.rf-auth-modal-handle {
+  display: none;
+}
+
+.rf-auth-close {
+  display: inline-flex;
+  min-height: var(--rf-touch-min);
+  min-width: var(--rf-touch-min);
+  align-items: center;
+  justify-content: center;
+}
+
+/* ——— Landing ——— */
+@media (max-width: 639px) {
+  .rf-vp-hero {
+    min-height: auto;
+  }
+
+  .rf-vp-headline {
+    font-size: clamp(1.75rem, 8vw, 2.25rem);
+    line-height: 1.08;
+  }
+
+  .rf-vp-lede {
+    font-size: 0.9375rem;
+    max-width: none;
+  }
+
+  .rf-vp-hero-preview {
+    min-height: min(42vh, 360px);
+  }
+
+  .rf-vp-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rf-vp-actions .rf-btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .rf-land-section {
+    padding-block: clamp(2rem, 6vh, 3rem);
+  }
+
+  .rf-metrics-band-cell {
+    padding: 1rem 1.125rem;
+  }
+
+  .rf-metrics-band-value {
+    font-size: clamp(1.25rem, 5vw, 1.75rem);
+  }
+
+  .rf-land-cta-inner {
+    padding: 1.25rem 1rem;
+  }
+
+  .rf-workflow-rail {
+    display: flex;
+    gap: 0.625rem;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.25rem;
+    padding-bottom: 0.375rem;
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .rf-workflow-stage {
+    flex: 0 0 min(78vw, 17.5rem);
+    scroll-snap-align: start;
+    border: 1px solid var(--rf-line);
+    border-radius: var(--rf-radius-panel);
+    padding: 0.875rem 1rem;
+    background: var(--rf-surface);
+  }
+}
+
+/* ——— Desk ——— */
+.rf-desk-stages-mobile {
+  display: flex;
+  gap: 0.375rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  padding: 0.25rem 0 0.75rem;
+  margin-bottom: 0.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 1024px) {
+  .rf-desk-stages-mobile {
+    display: none;
+  }
+}
+
+.rf-desk-stages-mobile-step {
+  flex: 1 0 auto;
+  min-width: 5.5rem;
+  scroll-snap-align: start;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  border: 1px solid color-mix(in oklab, var(--rf-line) 85%, transparent);
+  border-radius: 999px;
+  padding: 0.375rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rf-muted);
+  transition:
+    border-color var(--rf-duration-micro) var(--rf-ease-out),
+    background-color var(--rf-duration-micro) var(--rf-ease-out),
+    color var(--rf-duration-micro) var(--rf-ease-out);
+}
+
+.rf-desk-stages-mobile-step[data-active="true"] {
+  border-color: color-mix(in oklab, var(--rf-accent) 35%, var(--rf-line));
+  background: color-mix(in oklab, var(--rf-accent) 8%, var(--rf-surface));
+  color: var(--rf-accent);
+}
+
+.rf-desk-stages-mobile-step[data-complete="true"]:not([data-active="true"]) {
+  color: var(--rf-ink-soft);
+}
+
+.rf-desk-stages-mobile-step span:first-child {
+  display: inline-flex;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--rf-line) 80%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+}
+
+@media (max-width: 1023px) {
+  .rf-desk-workspace {
+    gap: 0.875rem;
+  }
+
+  .rf-desk-stage > .rf-panel {
+    min-height: auto;
+  }
+
+  .rf-desk-empty-state {
+    min-height: 12rem;
+    padding: 1.5rem 1rem;
+  }
+
+  .rf-desk-stage-transact .rf-desk-transact-actions {
+    position: sticky;
+    bottom: max(0.5rem, var(--rf-safe-bottom));
+    z-index: 2;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in oklab, var(--rf-surface) 88%, transparent) 28%,
+      var(--rf-surface) 100%
+    );
+  }
+}
+
+/* ——— Admin mobile nav drawer ——— */
+.rf-admin-nav-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: var(--rf-overlay-scrim);
+  animation: rf-enter-fade var(--rf-duration-ui) var(--rf-ease-out) both;
+}
+
+.rf-admin-nav-drawer {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 56;
+  display: flex;
+  width: min(100%, 18.5rem);
+  flex-direction: column;
+  border-right: 1px solid var(--rf-line);
+  background: var(--rf-canvas-2);
+  padding-top: var(--rf-safe-top);
+  padding-bottom: var(--rf-safe-bottom);
+  box-shadow: 12px 0 40px rgb(0 0 0 / 0.35);
+  animation: rf-mobile-drawer-in var(--rf-duration-panel) var(--rf-ease-out) both;
+}
+
+@keyframes rf-mobile-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.rf-admin-nav-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--rf-line);
+  padding: 0.875rem 1rem;
+}
+
+.rf-admin-nav-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.75rem;
+}
+
+.rf-admin-mobile-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--rf-line);
+  padding:
+    0.5rem
+    max(0.75rem, var(--rf-safe-right))
+    0.5rem
+    max(0.75rem, var(--rf-safe-left));
+}
+
+@media (min-width: 1024px) {
+  .rf-admin-mobile-bar {
+    display: none;
+  }
+}
+
+.rf-admin-mobile-menu-btn {
+  display: inline-flex;
+  min-height: var(--rf-touch-min);
+  min-width: var(--rf-touch-min);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in oklab, var(--rf-line) 80%, transparent);
+  border-radius: var(--rf-radius-control);
+  background: var(--rf-surface);
+  color: var(--rf-ink-soft);
+}
+
+.rf-admin-mobile-current {
+  min-width: 0;
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ——— Admin tables + drawers ——— */
+@media (max-width: 639px) {
+  .rf-data-table {
+    position: relative;
+    margin-inline: -0.25rem;
+    border-radius: var(--rf-radius-panel);
+  }
+
+  .rf-data-table::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1.5rem;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--rf-canvas) 85%, transparent));
+  }
+
+  .rf-data-table table {
+    min-width: 36rem;
+  }
+
+  .rf-data-table td,
+  .rf-data-table th {
+    padding-inline: 0.75rem;
+  }
+
+  .rf-sheet,
+  .rf-overlay .rf-sheet {
+    width: 100%;
+    max-width: none;
+    border-left: 0;
+  }
+
+  .rf-command-primary-value,
+  .rf-insights-primary-value {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+  }
+
+  .rf-admin-page {
+    gap: 1.5rem;
+  }
+
+  .rf-hero-metric-value {
+    font-size: 1.75rem;
+  }
+}
+
+/* ——— Touch feedback ——— */
+@media (hover: none) and (pointer: coarse) {
+  .rf-btn:active:not(:disabled),
+  button.rf-motion-colors:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .rf-nav-link:active {
+    background: color-mix(in oklab, var(--rf-accent) 8%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rf-admin-nav-drawer,
+  .rf-admin-nav-drawer-backdrop {
+    animation: none !important;
+  }
+
+  .rf-desk-stages-mobile-step {
+    transition: none;
+  }
+}

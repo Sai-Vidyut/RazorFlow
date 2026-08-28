@@ -1,0 +1,20 @@
+---
+description: RazorFlow original visual identity and design-system locks
+alwaysApply: true
+---
+
+# RazorFlow Design
+
+Original identity. Do not inherit another project's look.
+
+Reading: trust-first fintech product for merchants and judges. Quiet premium-neutral. Custom tokens. Liquid glass is one technique, not the brand.
+
+Landing dials: variance 6, motion 5, density 4. Desk dials: variance 4, motion 4, density 6.
+
+Tokens live in `src/app/globals.css`. Accent is settlement teal only. Fonts: Outfit + IBM Plex Mono. No Inter. No Fraunces. No Instrument Serif. No AI purple. No em dashes in UI copy. No crypto terminal.
+
+Radius: controls 8px, panels 12px, glass overlays 16px. Phosphor icons only, one family, weight regular.
+
+Glass only on agent surfaces, overlays, nav when it helps, high-value metrics, and primary financial controls. Solid fallback for `prefers-reduced-transparency`. Motion communicates state; honor `prefers-reduced-motion`.
+
+A screen is a composition, not a pile of components. Financial numbers use tabular mono. Every important control needs hover, focus-visible, active, loading, success, error, empty, and disabled where relevant.

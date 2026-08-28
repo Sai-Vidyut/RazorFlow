@@ -1,0 +1,18 @@
+---
+description: Mandatory design toolkit and quality loop for RazorFlow
+alwaysApply: true
+---
+
+# RazorFlow Toolkit
+
+Use these together, never as a grab bag of tricks:
+
+1. `design-taste-frontend` for composition, type, hierarchy, anti-slop.
+2. `web-design-guidelines` (fetch Vercel guidelines before UI review).
+3. Awesome Design full library in `.agents/awesome-design` plus installed skills. Consult layout, nav, type, data, motion, states, depth. Apply only what serves the screen. Do not treat the library as glass-only.
+4. `image-to-code` when visual references exist (including `public/design` and generated comps).
+5. Playwright CLI / `@playwright/test` before calling a frontend flow done.
+
+Loop: design → implement → run → Playwright → inspect → fix. Do not ship a flow that only compiles.
+
+Selective Awesome Design roles: agentic (outcomes), enterprise/ant (data hierarchy), levels (conversion), premium/sleek/refined (restraint), geometric (structure). Never copy another skill's palette or typeface into RazorFlow.
