@@ -146,6 +146,8 @@ RazorFlow separates **understanding** from **catalog truth**:
 
 Gemini never receives the product catalog and never outputs SKUs. Hard constraints are enforced before ranking; soft preferences (`good`, `travel`, `premium`) influence relevance only.
 
+**Semantic category inference:** When a use case clearly implies a product domain, Gemini sets `category` (e.g. long flights → headphones, gym → earbuds, charge/protect → accessory). If the request is genuinely ambiguous, `category` stays null and discovery returns empty with guidance — the catalog is never browsed without a category.
+
 **Browse vs single:** `discovery.mode=browse` returns up to 4 qualifying products for Agent Decision pagination (`Option 1 of N`, **Next product**, **No more matching options**). `discovery.mode=single` returns one primary recommendation (e.g. exact product name, best/recommend).
 
 Example — `good headphones under 3k except Commute Lite`:

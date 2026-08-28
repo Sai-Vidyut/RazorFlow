@@ -81,6 +81,12 @@ Request: `good headphones under 3k except northline commute lite`
 
 Unresolved exclusion references (e.g. brand-only `except Northline`) are kept on intent but **not** applied as a broad filter.
 
+When Gemini cannot confidently infer a category, `category` stays null and deterministic discovery returns **empty** with guidance to name a product type — it never browses the full catalog.
+
+### Semantic category inference
+
+Gemini may set `category` from use case when the product domain is clear (e.g. long flights → headphones, gym → earbuds, charging/protection → accessory). This is intent extraction, not SKU selection. If the request is genuinely ambiguous (`something good under 10k`), category remains null and discovery stays empty.
+
 ## Surfaces
 
 | Route | Job |

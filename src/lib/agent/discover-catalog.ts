@@ -202,6 +202,10 @@ export function discoverProductsWithMeta(rawIntent: StructuredIntent, catalog: P
     };
   }
 
+  if (!category) {
+    return emptyDiscoveryMeta(intent, null);
+  }
+
   let pool = filterAvailable(catalog);
   pool = filterByCategory(pool, category);
   pool = filterByBudget(pool, intent);

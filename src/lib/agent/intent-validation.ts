@@ -23,7 +23,8 @@ export const GEMINI_STRUCTURED_INTENT_JSON_SCHEMA = {
     },
     category: {
       type: ["string", "null"],
-      description: "Product category or type mentioned by the buyer, if any.",
+      description:
+        "Product category when stated or confidently implied by use case. headphones | earbuds (incl. earphones) | speaker | soundbar | accessory | outdoor. Infer from use case when clear (e.g. long flights→headphones, gym→earbuds, charge/protect gear→accessory). Leave null only when genuinely ambiguous.",
     },
     constraints: {
       type: "object",
@@ -64,7 +65,8 @@ export const GEMINI_STRUCTURED_INTENT_JSON_SCHEMA = {
     },
     useCase: {
       type: ["string", "null"],
-      description: "Primary use case such as travel, gift, commute, or gym.",
+      description:
+        "Primary use case such as travel, flight, gym, commute, or gift. Pair with category when the use case clearly implies a product domain.",
     },
     quantity: {
       type: "integer",

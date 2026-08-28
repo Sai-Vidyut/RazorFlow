@@ -273,7 +273,9 @@ async function main() {
   ]);
 
   await runCase(results, catalog, policies, "I want something for long flights under 10k", ({ intent, products }) => [
+    checkCategory(intent, "headphones"),
     checkMaxBudget(intent, 10000),
+    checkProductsInCategory(products, "headphones"),
     checkBudgetHard(products, 10000),
   ]);
 

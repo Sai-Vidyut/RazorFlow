@@ -72,6 +72,12 @@ function emptyDiscoveryMessage(
 ): string {
   const exclusionSuffix = formatExclusionSuffix(intent, catalog);
   const categoryLabel = category ?? intent.category;
+  if (!categoryLabel) {
+    if (maxBudgetInr != null) {
+      return `Could not determine a product category for this request. Try naming headphones, earbuds, or another product type under ₹${maxBudgetInr.toLocaleString("en-IN")}.`;
+    }
+    return "Could not determine a product category for this request. Try naming a product type such as headphones or earbuds.";
+  }
   if (maxBudgetInr != null && categoryLabel) {
     return `No ${categoryLabel} available under ₹${maxBudgetInr.toLocaleString("en-IN")}${exclusionSuffix}.`;
   }
