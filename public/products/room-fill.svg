@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Room Fill">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#3D6B62" opacity="0.08"/>
+  
+  <rect x="170" y="220" width="120" height="200" rx="8" fill="#3D6B62"/>
+  <rect x="350" y="220" width="120" height="200" rx="8" fill="#101820" opacity="0.85"/>
+  <circle cx="230" cy="320" r="36" fill="#E8EEF2" opacity="0.3"/>
+  <circle cx="410" cy="320" r="36" fill="#E8EEF2" opacity="0.3"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">room-fill</text>
+</svg>

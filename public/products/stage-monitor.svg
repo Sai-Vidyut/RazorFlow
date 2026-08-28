@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Stage Monitor">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#0E6B65" opacity="0.08"/>
+  
+  <circle cx="250" cy="280" r="42" fill="#0E6B65"/>
+  <circle cx="390" cy="280" r="42" fill="#101820" opacity="0.85"/>
+  <path d="M250 322c-40 80-80 120-120 160" stroke="#101820" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <path d="M390 322c40 80 80 120 120 160" stroke="#101820" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">stage-monitor</text>
+</svg>

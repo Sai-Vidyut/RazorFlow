@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Bassline Over">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#0B5F5A" opacity="0.08"/>
+  
+  <path d="M140 290c0-95 80-170 180-170s180 75 180 170v70c0 35-28 63-63 63h-24c-35 0-63-28-63-63v-45h-48v45c0 35-28 63-63 63h-24c-35 0-63-28-63-63v-70z" fill="#101820" opacity="0.9"/>
+  <ellipse cx="180" cy="300" rx="78" ry="92" fill="#0B5F5A"/>
+  <ellipse cx="460" cy="300" rx="78" ry="92" fill="#0B5F5A"/>
+  <ellipse cx="180" cy="300" rx="42" ry="52" fill="#E8EEF2" opacity="0.28"/>
+  <ellipse cx="460" cy="300" rx="42" ry="52" fill="#E8EEF2" opacity="0.28"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">bassline-over</text>
+</svg>

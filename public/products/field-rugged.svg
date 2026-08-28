@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Field Rugged">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#0E6B65" opacity="0.08"/>
+  
+  <rect x="210" y="230" width="220" height="180" rx="36" fill="#101820" opacity="0.9"/>
+  <rect x="240" y="260" width="160" height="120" rx="18" fill="#0E6B65"/>
+  <path d="M320 170v40M320 410v40" stroke="#101820" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="320" cy="320" r="34" fill="#E8EEF2" opacity="0.35"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">field-rugged</text>
+</svg>

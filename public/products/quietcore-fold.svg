@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Quietcore Fold">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#3D6B62" opacity="0.08"/>
+  
+  <g transform="rotate(-12 320 320)">
+    <ellipse cx="220" cy="290" rx="88" ry="105" fill="#3D6B62"/>
+    <ellipse cx="420" cy="330" rx="88" ry="105" fill="#101820" opacity="0.85"/>
+    <rect x="285" y="255" width="70" height="120" rx="12" fill="#101820" opacity="0.55"/>
+  </g>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">quietcore-fold</text>
+</svg>

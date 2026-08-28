@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Transit Shell">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#124E78" opacity="0.08"/>
+  
+  <rect x="190" y="210" width="260" height="220" rx="28" fill="#101820" opacity="0.88"/>
+  <rect x="220" y="240" width="200" height="160" rx="16" fill="#124E78" opacity="0.85"/>
+  <rect x="300" y="210" width="40" height="220" rx="4" fill="#E8EEF2" opacity="0.2"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">transit-shell</text>
+</svg>

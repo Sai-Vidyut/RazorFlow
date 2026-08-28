@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Dual Dock">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#124E78" opacity="0.08"/>
+  
+  <rect x="250" y="230" width="140" height="180" rx="22" fill="#101820" opacity="0.9"/>
+  <rect x="280" y="260" width="36" height="36" rx="8" fill="#124E78"/>
+  <rect x="324" y="260" width="36" height="36" rx="8" fill="#124E78"/>
+  <path d="M320 410v50" stroke="#101820" stroke-width="8" stroke-linecap="round"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">dual-dock</text>
+</svg>

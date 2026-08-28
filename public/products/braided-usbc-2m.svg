@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Braided Usbc 2m">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#3D6B62" opacity="0.08"/>
+  
+  <path d="M160 360c120-120 200-120 320 0" stroke="#3D6B62" stroke-width="12" fill="none" stroke-linecap="round"/>
+  <path d="M160 380c120-100 200-100 320 20" stroke="#101820" stroke-width="6" fill="none" stroke-linecap="round" opacity="0.45"/>
+  <rect x="130" y="340" width="36" height="36" rx="8" fill="#101820"/>
+  <rect x="474" y="340" width="36" height="36" rx="8" fill="#101820"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">braided-usbc-2m</text>
+</svg>

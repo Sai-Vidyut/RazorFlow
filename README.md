@@ -20,6 +20,12 @@ RazorFlow turns buyer intent into a policy-governed sale on Razorpay. It is not 
 
 Northline Audio is the seeded demo storefront: headphones, earbuds, speakers, soundbars, cases, cables, chargers, and accessories. The catalog ships with **40 deterministic products** designed for realistic agent matching (budget tiers, overlapping use cases, attach accessories).
 
+Each SKU has a **unique product image** under `public/products/`: the original four hero products use PNG photography (`halo-anc`, `halo-case`, `drift-buds`, `field-speaker`); the expanded catalog uses deterministic SVG renders keyed by SKU (`public/products/{sku}.svg`). Regenerate expanded SVGs with:
+
+```bash
+npm run catalog:images
+```
+
 ## Surfaces
 
 | Route | Purpose |

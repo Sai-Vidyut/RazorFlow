@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Leather Carry">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#3D6B62" opacity="0.08"/>
+  
+  <path d="M210 250h220c20 0 36 16 36 36v108c0 20-16 36-36 36H210c-20 0-36-16-36-36V286c0-20 16-36 36-36z" fill="#3D6B62" opacity="0.88"/>
+  <path d="M230 290h180" stroke="#101820" stroke-width="4" opacity="0.2" stroke-linecap="round"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">leather-carry</text>
+</svg>

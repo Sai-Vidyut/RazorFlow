@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-label="Drift Case S">
+  <rect width="640" height="640" fill="#E8EEF2"/>
+  <circle cx="520" cy="120" r="180" fill="#2A4A52" opacity="0.08"/>
+  
+  <rect x="240" y="250" width="160" height="140" rx="32" fill="#2A4A52" opacity="0.9"/>
+  <rect x="260" y="270" width="120" height="100" rx="24" fill="#101820" opacity="0.15"/>
+  <text x="32" y="598" font-family="system-ui, sans-serif" font-size="18" fill="#5C6873" letter-spacing="0.04em">NORTHLINE</text>
+  <text x="32" y="622" font-family="ui-monospace, monospace" font-size="14" fill="#5C6873">drift-case-s</text>
+</svg>
