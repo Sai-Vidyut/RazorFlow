@@ -32,6 +32,7 @@ npm run catalog:images
 | --- | --- |
 | `/` | Product story and live metrics (this week) |
 | `/desk` | Intent → recommendation → policy → Razorpay payment |
+| `/cart` | User-controlled cart (per BuyerSession) before checkout |
 | `/policies` | Merchant guardrails (read/write) |
 | `/admin` | Merchant control plane: overview, orders, payments, recovery, products, policies, activity, insights, staff |
 
@@ -126,10 +127,11 @@ The app listens on `http://localhost:3010`.
 
 ## Demo flow
 
-1. Open `/desk`, run the agent on a buyer intent (budget, use case, or product name).
-2. Authorize payment (Razorpay Test Mode or simulate decline).
-3. On failure, recovery evaluates policy and catalog before retry.
-4. Open `/admin` for orders, payments, recovery queue, products, and audit activity.
+1. Open `/desk`, run the agent on a buyer intent (budget, use case, product count, or sort order).
+2. Review primary or multi-result cards; optionally add suggested accessories with **Add to cart** (never auto-added).
+3. Open **Cart** from the top bar, adjust quantities, then authorize payment (Razorpay Test Mode or simulate decline).
+4. On failure, recovery evaluates policy and catalog before retry.
+5. Open `/admin` for orders, payments, recovery queue, products, and audit activity.
 
 ## Tests
 

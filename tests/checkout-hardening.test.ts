@@ -131,7 +131,7 @@ describe("Checkout hardening (Phase 3C P0)", () => {
     } satisfies Partial<CheckoutError>);
   });
 
-  it("rejects checkout when attach product changes after decision", async () => {
+  it("allows checkout when attach suggestion changes because attach is not in cart total", async () => {
     const { sessionId, decisionId } = await readyFlightHeadphonesDecision();
 
     await updatePersistedPolicies({
@@ -139,11 +139,8 @@ describe("Checkout hardening (Phase 3C P0)", () => {
       allowEvidenceCrossSell: false,
     });
 
-    await expect(createCheckoutForSession(sessionId, decisionId)).rejects.toMatchObject({
-      name: "CheckoutError",
-      status: 409,
-      message: expect.stringContaining("no longer valid"),
-    } satisfies Partial<CheckoutError>);
+    const checkout = await createCheckoutForSession(sessionId, decisionId);
+    expect(checkout.amountPaise).toBe(749000);
   });
 
   it("rejects checkout when discount changes after decision", async () => {
@@ -219,7 +216,7 @@ describe("Checkout hardening (Phase 3C P0)", () => {
 
     const retryCheckout = await createCheckoutForSession(sessionId, decisionId);
     expect(retryCheckout.orderId).not.toBe(firstCheckout.orderId);
-    expect(retryCheckout.amountPaise).toBe(828000);
+    expect(retryCheckout.amountPaise).toBe(749000);
 
     const failedOrder = await db.order.findUnique({ where: { id: firstCheckout.orderId } });
     const retryOrder = await db.order.findUnique({ where: { id: retryCheckout.orderId } });
@@ -244,6 +241,6 @@ describe("Checkout hardening (Phase 3C P0)", () => {
     });
 
     const after = await getLedgerData();
-    expect(after.weekGmv - before.weekGmv).toBeCloseTo(8280, 0);
+    expect(after.weekGmv - before.weekGmv).toBeCloseTo(7490, 0);
   });
 });

@@ -29,7 +29,7 @@ test.describe("Phase 11 account journeys", () => {
     await completeDeskAccountAuthUi(page, `e2e-buyer-${Date.now()}@example.com`);
 
     await expect(page.getByTestId("payment-failed")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Your basket is unchanged.")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId("retry-payment")).toBeVisible({ timeout: 15_000 });
   });
 
   test("verified buyer does not see Admin and cannot open admin portal", async ({ page }) => {

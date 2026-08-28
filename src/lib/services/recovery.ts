@@ -80,9 +80,6 @@ function diffDecisionFromFresh(
   if (decision.primaryProductId !== freshPrimaryId) {
     changes.push("Primary product changed");
   }
-  if (decision.attachProductId !== freshAttachId) {
-    changes.push("Cross-sell offer changed");
-  }
   if (decision.subtotalPaise !== freshSubtotalPaise) {
     changes.push("Basket total changed");
   }
@@ -243,13 +240,18 @@ export async function evaluateRecovery(
       decision.primaryProductId ? (dbById.get(decision.primaryProductId) ?? null) : null,
       decision.quantity,
     ),
-    ...describeProductState(
-      "Attach product",
-      catalogProductById(catalog, decision.attachProductId),
-      decision.attachProductId ? (dbById.get(decision.attachProductId) ?? null) : null,
-      decision.quantity,
-    ),
   ];
+
+  if (decision.attachProductId) {
+    changes.push(
+      ...describeProductState(
+        "Attach product",
+        catalogProductById(catalog, decision.attachProductId),
+        dbById.get(decision.attachProductId) ?? null,
+        decision.quantity,
+      ),
+    );
+  }
 
   if (fresh.status === "blocked") {
     const result: RecoveryEvaluation = {

@@ -40,15 +40,17 @@ test.describe("RazorFlow journeys", () => {
     await expect(page.getByTestId("product-name")).toHaveText("Northline Halo ANC", {
       timeout: 15_000,
     });
+    await expect(page.getByTestId("suggested-accessory")).toBeVisible();
     await expect(page.getByText(/high attach rate/i)).toBeVisible();
     await expect(page.getByTestId("policy-result")).toContainText(/Allowed/i);
+    await expect(page.getByTestId("cart-summary")).toContainText("Northline Halo ANC");
 
     if (isRazorpayConfigured()) {
       await ensureVerifiedBuyerForCheckout(page);
       // Server creates a real order, then the explicit simulated-decline path records failure.
       await page.getByTestId("simulate-decline").click();
       await expect(page.getByTestId("payment-failed")).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByText("Your basket is unchanged.")).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByTestId("retry-payment")).toBeVisible({ timeout: 15_000 });
     } else {
       // Checkout cannot start without credentials; failure is returned by the server.
       await ensureVerifiedBuyerForCheckout(page);
@@ -77,7 +79,7 @@ test.describe("RazorFlow journeys", () => {
     await page.getByTestId("simulate-decline").click();
     await expect(page.getByTestId("payment-failed")).toBeVisible({ timeout: 15_000 });
     await page.getByTestId("retry-payment").click();
-    await expect(page.getByTestId("authorize")).toHaveText(/Collecting payment/i, {
+    await expect(page.getByTestId("authorize")).toHaveText(/Collecting payment|Authorize/i, {
       timeout: 15_000,
     });
   });

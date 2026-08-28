@@ -147,7 +147,7 @@ describe("Phase 7 demo hardening and integrity", () => {
     });
 
     const metrics = await queryCommerceMetrics(MERCHANT_ID);
-    expect(metrics.gmvInr).toBeCloseTo(8280, 0);
+    expect(metrics.gmvInr).toBeCloseTo(7490, 0);
     expect(metrics.capturedPayments).toBe(1);
     expect(metrics.failedPayments).toBe(0);
     expect(metrics.pendingPayments).toBe(0);

@@ -192,6 +192,7 @@ export function agentResultToApiResponse(
     intent: result.intent,
     primary: result.primary ? toPublicProduct(result.primary) : null,
     attach: result.attach ? toPublicProduct(result.attach) : null,
+    results: result.results.map(toPublicProduct),
     discountPct: result.discountPct,
     subtotal: result.subtotal,
     marginPct: result.marginPct,

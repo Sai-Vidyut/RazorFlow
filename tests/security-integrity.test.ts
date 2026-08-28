@@ -244,14 +244,14 @@ describe("Phase 3D security and integrity", () => {
     const { result, decisionId } = await runAgentForSession(sessionId);
 
     expect(result.status).toBe("ready");
-    expect(result.subtotal).toBe(8280 * 2);
+    expect(result.subtotal).toBe(7490 * 2);
 
     const decision = await db.agentDecision.findUniqueOrThrow({ where: { id: decisionId } });
     expect(decision.quantity).toBe(2);
-    expect(decision.subtotalPaise).toBe(828000 * 2);
+    expect(decision.subtotalPaise).toBe(749000 * 2);
 
     const checkout = await createCheckoutForSession(sessionId, decisionId);
-    expect(checkout.amountPaise).toBe(828000 * 2);
+    expect(checkout.amountPaise).toBe(749000 * 2);
   });
 
   it("blocks quantity that exceeds primary inventory", async () => {

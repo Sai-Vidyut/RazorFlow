@@ -4,6 +4,7 @@ import {
   authenticateMerchant,
   ensureVerifiedBuyerForCheckout,
   prepareE2EBaseline,
+  runDeskAgentWithIntent,
   SEED_POLICIES,
 } from "./helpers/baseline";
 
@@ -86,8 +87,7 @@ test.describe("Phase 7 journey regression", () => {
       });
     });
 
-    await page.goto("/desk");
-    await page.getByTestId("run-agent").click();
+    await runDeskAgentWithIntent(page);
     await expect(page.getByTestId("authorize")).toBeEnabled({ timeout: 15_000 });
     await ensureVerifiedBuyerForCheckout(page);
     await page.getByTestId("simulate-decline").click();

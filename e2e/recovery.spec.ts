@@ -15,9 +15,9 @@ test.describe("Revenue recovery E2E", () => {
     await ensureVerifiedBuyerForCheckout(page);
     await page.getByTestId("simulate-decline").click();
     await expect(page.getByTestId("payment-failed")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByText("Your basket is unchanged.")).toBeVisible();
+    await expect(page.getByTestId("retry-payment")).toBeVisible();
     await page.getByTestId("retry-payment").click();
-    await expect(page.getByTestId("authorize")).toHaveText(/Collecting payment/i, {
+    await expect(page.getByTestId("authorize")).toHaveText(/Collecting payment|Authorize/i, {
       timeout: 15_000,
     });
   });

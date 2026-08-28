@@ -11,7 +11,11 @@ PostgreSQL Catalog
       ↓
 Structured Buyer Intent          (Understand)
       ↓
-Generic Product Retrieval/Ranking
+Discovery: filter → sort → take N   (Identify; deterministic)
+      ↓
+Agent recommendation + optional attach suggestion (not in cart)
+      ↓
+User-controlled Cart (CartLine per BuyerSession)
       ↓
 Deterministic Policy Engine    (Decide / Govern)
       ↓
@@ -52,6 +56,7 @@ Gemini never receives the product catalog. Gemini never sets prices, discounts, 
 | --- | --- |
 | `/` | Explain the product and send merchants to the desk |
 | `/desk` | Run intent → recommendation → policy → payment UI |
+| `/cart` | Explicit cart lines, quantity controls, proceed to checkout |
 | `/policies` | Show and adjust merchant guardrails (persisted) |
 | `/admin` | Merchant control plane: overview, orders, payments, recovery, products, policies, activity, insights |
 
@@ -80,26 +85,36 @@ Buyer and merchant API routes enforce session/order ownership and merchant scopi
 `src/lib/agent/` is split into:
 
 1. **Intent** (`intent.ts`, `gemini-intent-provider.ts`, `parse-intent.ts`, `structured-intent.ts`) — Gemini structured extraction with validated `StructuredIntent` JSON and deterministic fallback
-2. **Matching** (`match-catalog.ts`) — ranks catalog products using category, metadata, tags, price constraints, and availability. Does not read raw natural language.
-3. **Policy + decision** (`run-agent.ts`) — deterministic margin, budget, discount, order-cap, and attach guardrails
+2. **Matching** (`match-catalog.ts`, `discover-catalog.ts`) — ranks and filters catalog products using category, metadata, tags, price constraints, requested result count, and deterministic price sorting. Does not read raw natural language for arithmetic.
+3. **Policy + decision** (`run-agent.ts`) — deterministic margin, budget, discount, order-cap guardrails. Cross-sell accessories are suggested only; they are never added to checkout totals automatically.
 
-Execution runs on the server via `POST /api/agent/run`. Stored session intent is the source of truth at agent run and checkout re-check time.
+Execution runs on the server via `POST /api/agent/run`. Stored session intent is the source of truth at agent run time.
+
+## Cart
+
+`CartLine` rows belong to a `BuyerSession` (anonymous buyers supported). Items enter the cart only via explicit buyer action (`POST /api/cart`).
+
+- Agent **primary** and **multi-result** cards expose **Add to cart**
+- **Suggested accessories** are optional; they do not affect subtotals until added
+- Checkout uses `POST /api/checkout` with `{ sessionId, source: "cart" }` after policy validation on cart contents
+- Orders persist `OrderLineItem` rows for multi-SKU audit; `amountPaise` remains the server-computed cart total
 
 ## Persistence
 
-PostgreSQL models: `Merchant`, `Product`, `Policy`, `BuyerSession`, `BuyerIntent`, `AgentDecision`, `Order`, `Payment`, `AuditEvent`.
+PostgreSQL models: `Merchant`, `Product`, `Policy`, `BuyerSession`, `BuyerIntent`, `AgentDecision`, `CartLine`, `Order`, `OrderLineItem`, `Payment`, `AuditEvent`.
 
 Desk flow:
 
 1. `POST /api/sessions` creates session + structured intent + audit events
-2. `POST /api/agent/run` loads catalog/policies, ranks products, evaluates policy, persists decision + audit events
-3. Admin dashboards and `/api/ledger` aggregate real session/decision data (GMV from verified captured payments only)
+2. `POST /api/agent/run` loads catalog/policies, discovers/ranks products, evaluates policy, persists decision + audit events
+3. Buyer adds SKUs to cart via `POST /api/cart`
+4. `POST /api/checkout` (cart source) validates cart + policy, creates order line items, starts Razorpay
 
 ## Payments and recovery
 
 | Step | Endpoint / service | State |
 | --- | --- | --- |
-| Checkout start | `POST /api/checkout` → `createCheckoutForSession` | Order `CREATED`, Payment `PENDING`, session `PAYMENT_PENDING` |
+| Checkout start | `POST /api/checkout` → `createCheckoutFromCart` or `createCheckoutForSession` | Order `CREATED` + line items (cart), Payment `PENDING`, session `PAYMENT_PENDING` |
 | Abandon (modal dismiss) | `POST /api/payments/abandon` → `abandonCheckout` | Order/Payment `CANCELLED`, session restored to `DECISION_MADE`, audit `CHECKOUT_ABANDONED` |
 | Payment failure | `POST /api/payments/fail` or webhook | Order/Payment `FAILED`, session `PAYMENT_FAILED` |
 | Capture | `POST /api/payments/verify` or webhook | Order `PAID`, Payment `CAPTURED`, session `PAYMENT_CAPTURED` |

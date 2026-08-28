@@ -122,7 +122,22 @@ export function validateStructuredIntent(raw: unknown, rawRequest: string): Stru
     },
     useCase,
     quantity,
+    discovery: readDiscovery(record.discovery),
   });
+}
+
+function readDiscovery(value: unknown): Partial<StructuredIntent["discovery"]> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  const record = value as Record<string, unknown>;
+  const sortBy = record.sortBy;
+  return {
+    resultCount: sanitizeNullableInt(record.resultCount, "discovery.resultCount"),
+    minResults: sanitizeNullableInt(record.minResults, "discovery.minResults") ?? undefined,
+    sortBy: sortBy === "price" || sortBy === "score" ? sortBy : null,
+    sortOrder: record.sortOrder === "desc" ? "desc" : "asc",
+  };
 }
 
 function readObject(value: unknown, label: string): Record<string, unknown> {

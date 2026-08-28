@@ -78,7 +78,7 @@ describe("RazorFlow persistence slice", () => {
 
     const decision = await db.agentDecision.findUnique({ where: { id: decisionId } });
     expect(decision?.policyAllowed).toBe(true);
-    expect(decision?.subtotalPaise).toBe(828000);
+    expect(decision?.subtotalPaise).toBe(749000);
 
     const audit = await db.auditEvent.findMany({ where: { sessionId } });
     expect(audit.some((event) => event.type === "RECOMMENDATION_MADE")).toBe(true);
@@ -330,7 +330,7 @@ describe("Phase 3A generic catalog matching", () => {
     });
 
     const result = runAgentWithParsed(intent, await getMerchantPoliciesForAgent(merchantId), catalog);
-    expect(result.status).toBe("blocked");
-    expect(result.blockedReason).toContain("budget");
+    expect(result.status).toBe("ready");
+    expect(result.primary!.pricePaise).toBeLessThanOrEqual(100000);
   });
 });

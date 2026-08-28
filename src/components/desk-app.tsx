@@ -15,6 +15,8 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AccountAuthModal, type AccountAuthMode } from "@/components/auth/account-auth-modal";
+import { AddToCartButton } from "@/components/cart/add-to-cart-button";
+import { ProductResultGrid } from "@/components/cart/product-result-grid";
 import { AgentProcessingView } from "@/components/desk/agent-processing-view";
 import { DeskStageRail } from "@/components/desk/desk-stage-rail";
 import { useAgentProcessingPresentation } from "@/components/desk/use-agent-processing";
@@ -23,8 +25,9 @@ import { Money } from "@/components/money";
 import { StatusChip } from "@/components/status-chip";
 import { Button, Panel, Textarea } from "@/components/ui/design-system";
 import { DeskShell } from "@/components/shell/desk-shell";
-import { type AgentResult, type PolicyVerdict, type Product, type StructuredIntent, intentDisplayNeed, intentMaxBudgetInr } from "@/lib/agent";
+import { type AgentResult, type PolicyVerdict, type Product, type StructuredIntent, intentDisplayNeed, intentMaxBudgetInr, isMultiProductDiscovery } from "@/lib/agent";
 import type { DemoPrompt } from "@/lib/agent/demo-prompts";
+import { useCart } from "@/hooks/use-cart";
 import { openRazorpayCheckout } from "@/lib/razorpay/checkout";
 
 type AgentApiResponse = {
@@ -34,6 +37,7 @@ type AgentApiResponse = {
   intent: StructuredIntent;
   primary: Product | null;
   attach: Product | null;
+  results: Product[];
   discountPct: number;
   subtotal: number;
   marginPct: number;
@@ -81,6 +85,8 @@ export function DeskApp() {
   const [accountModalMode, setAccountModalMode] = useState<AccountAuthMode>("login");
   const [resumeAuthorizeAfterAuth, setResumeAuthorizeAfterAuth] = useState(false);
   const [pendingForceFail, setPendingForceFail] = useState(false);
+
+  const { cart, refresh: refreshCart } = useCart(sessionId);
 
   const refreshAuthState = useCallback(() => {
     window.dispatchEvent(new Event("razorflow:auth-changed"));
@@ -174,15 +180,18 @@ export function DeskApp() {
   }
 
   async function startCheckout() {
-    if (!sessionId || !decisionId) {
+    if (!sessionId) {
       throw new Error("Session is missing. Run the agent again.");
+    }
+    if (cart.itemCount === 0) {
+      throw new Error("Add items to your cart before checkout.");
     }
 
     const response = await fetch("/api/checkout", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, decisionId }),
+      body: JSON.stringify({ sessionId, source: "cart" }),
     });
 
     const payload = (await response.json()) as {
@@ -190,6 +199,7 @@ export function DeskApp() {
       code?: string;
       keyId?: string;
       orderId?: string;
+      decisionId?: string;
       razorpayOrderId?: string;
       amountPaise?: number;
       currency?: string;
@@ -209,23 +219,27 @@ export function DeskApp() {
     }
 
     setOrderId(payload.orderId);
+    if (payload.decisionId) {
+      setDecisionId(payload.decisionId);
+    }
     return payload as {
       keyId: string;
       orderId: string;
+      decisionId?: string;
       razorpayOrderId: string;
       amountPaise: number;
       currency: string;
     };
   }
 
-  async function loadRecoveryEvaluation(): Promise<RecoveryEvaluation | null> {
-    if (!sessionId || !decisionId) return null;
+  async function loadRecoveryEvaluation(activeDecisionId = decisionId): Promise<RecoveryEvaluation | null> {
+    if (!sessionId || !activeDecisionId) return null;
     try {
       const response = await fetch("/api/recovery/evaluate", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, decisionId }),
+        body: JSON.stringify({ sessionId, decisionId: activeDecisionId }),
       });
       if (!response.ok) return null;
       const payload = (await response.json()) as { evaluation: RecoveryEvaluation };
@@ -268,7 +282,7 @@ export function DeskApp() {
   }
 
   async function authorize(forceFail = false, skipVerificationPrompt = false) {
-    if (!result || result.status !== "ready") return;
+    if (!result || result.status !== "ready" || cart.itemCount === 0) return;
     setPhase("processing");
     setError(null);
 
@@ -291,7 +305,7 @@ export function DeskApp() {
         }
         setPhase("failed");
         setError("Razorpay declined the payment. The basket is unchanged. Retry or pick another method.");
-        const evaluation = await loadRecoveryEvaluation();
+        const evaluation = await loadRecoveryEvaluation(checkout.decisionId);
         setRecovery(evaluation);
         return;
       }
@@ -301,7 +315,7 @@ export function DeskApp() {
         amount: checkout.amountPaise,
         currency: checkout.currency,
         name: merchantName,
-        description: result.primary?.name ?? "RazorFlow purchase",
+        description: cart.lines.map((line) => line.name).join(", ") || "RazorFlow purchase",
         order_id: checkout.razorpayOrderId,
         theme: { color: "#0f766e" },
         handler: async (paymentResponse) => {
@@ -326,7 +340,7 @@ export function DeskApp() {
           } catch (cause) {
             setPhase("failed");
             setError(cause instanceof Error ? cause.message : "Payment verification failed.");
-            const evaluation = await loadRecoveryEvaluation();
+            const evaluation = await loadRecoveryEvaluation(checkout.decisionId);
             setRecovery(evaluation);
           }
         },
@@ -368,7 +382,7 @@ export function DeskApp() {
             setError(reason);
           }
           setPhase("failed");
-          const evaluation = await loadRecoveryEvaluation();
+          const evaluation = await loadRecoveryEvaluation(checkout.decisionId);
           setRecovery(evaluation);
         })();
       });
@@ -552,7 +566,7 @@ export function DeskApp() {
                         </p>
                       </div>
                     ) : (
-                      <DecisionBody result={result} />
+                      <DecisionBody result={result} sessionId={sessionId} onCartChange={() => void refreshCart()} />
                     )}
                   </motion.div>
                 )}
@@ -621,26 +635,25 @@ export function DeskApp() {
                 </div>
 
                 <div className="mt-4 flex-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted">Basket</p>
-                  {result?.primary ? (
-                    <ul className="mt-2 space-y-2 text-sm">
-                      <li className="flex items-start justify-between gap-3">
-                        <span className="text-ink-soft">{result.primary.name}</span>
-                        <span className="shrink-0 font-medium tabular">
-                          <Money value={result.primary.price} />
-                        </span>
-                      </li>
-                      {result.attach ? (
-                        <li className="flex items-start justify-between gap-3">
-                          <span className="text-ink-soft">{result.attach.name}</span>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">Cart</p>
+                  {cart.lines.length > 0 ? (
+                    <ul className="mt-2 space-y-2 text-sm" data-testid="cart-summary">
+                      {cart.lines.map((line) => (
+                        <li key={line.id} className="flex items-start justify-between gap-3">
+                          <span className="text-ink-soft">
+                            {line.name}
+                            {line.quantity > 1 ? ` × ${line.quantity}` : ""}
+                          </span>
                           <span className="shrink-0 font-medium tabular">
-                            <Money value={result.attach.price} />
+                            <Money value={line.lineTotal} />
                           </span>
                         </li>
-                      ) : null}
+                      ))}
                     </ul>
                   ) : (
-                    <p className="mt-2 text-sm text-muted">No items yet.</p>
+                    <p className="mt-2 text-sm text-muted" data-testid="cart-empty-hint">
+                      No items yet. Add products from the agent results.
+                    </p>
                   )}
                 </div>
 
@@ -649,7 +662,7 @@ export function DeskApp() {
                     <div className="rf-kv-row py-0">
                       <dt className="text-muted">Subtotal</dt>
                       <dd className="font-medium tabular">
-                        <Money value={result?.subtotal ?? 0} />
+                        <Money value={cart.subtotal} />
                       </dd>
                     </div>
                     {result && result.discountPct > 0 ? (
@@ -660,8 +673,8 @@ export function DeskApp() {
                     ) : null}
                   </dl>
                   <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">Total</p>
-                  <p className="mt-1 text-3xl font-semibold tracking-tight tabular">
-                    <Money value={result?.subtotal ?? 0} />
+                  <p className="mt-1 text-3xl font-semibold tracking-tight tabular" data-testid="checkout-total">
+                    <Money value={cart.subtotal} />
                   </p>
                 </div>
 
@@ -669,15 +682,15 @@ export function DeskApp() {
                   <button
                     type="button"
                     data-testid="authorize"
-                    disabled={result?.status !== "ready" || busy || phase === "captured"}
+                    disabled={result?.status !== "ready" || cart.itemCount === 0 || busy || phase === "captured"}
                     onClick={() => authorize(false)}
                     className="rf-btn rf-motion-colors flex min-h-11 w-full items-center justify-center rounded-[8px] bg-accent text-sm font-medium text-white hover:bg-accent-hover enabled:active:scale-[0.98] disabled:opacity-50"
                   >
                     {phase === "processing" ? (
                       "Collecting payment…"
-                    ) : result?.status === "ready" ? (
+                    ) : result?.status === "ready" && cart.itemCount > 0 ? (
                       <>
-                        Authorize <Money value={result.subtotal} />
+                        Authorize <Money value={cart.subtotal} />
                       </>
                     ) : (
                       "Authorize"
@@ -686,7 +699,7 @@ export function DeskApp() {
                   <button
                     type="button"
                     data-testid="simulate-decline"
-                    disabled={result?.status !== "ready" || busy}
+                    disabled={result?.status !== "ready" || cart.itemCount === 0 || busy}
                     onClick={() => authorize(true)}
                     className="mt-2 flex min-h-11 w-full items-center justify-center rounded-[8px] border border-line text-sm text-ink-soft hover:text-ink disabled:opacity-50"
                   >
@@ -705,6 +718,7 @@ export function DeskApp() {
           {(phase === "captured" || phase === "failed") && result ? (
             <PaymentOverlay
               phase={phase}
+              checkoutTotal={cart.subtotal}
               result={result}
               error={error}
               recovery={recovery}
@@ -740,6 +754,7 @@ function mapApiResponseToAgentResult(payload: AgentApiResponse): AgentResult {
     intent: payload.intent,
     primary: payload.primary,
     attach: payload.attach,
+    results: payload.results ?? (payload.primary ? [payload.primary] : []),
     discountPct: payload.discountPct,
     subtotal: payload.subtotal,
     marginPct: payload.marginPct,
@@ -771,8 +786,30 @@ function EmptyDecision() {
   );
 }
 
-function DecisionBody({ result }: { result: AgentResult }) {
+function DecisionBody({
+  result,
+  sessionId,
+  onCartChange,
+}: {
+  result: AgentResult;
+  sessionId: string | null;
+  onCartChange?: () => void;
+}) {
   if (!result.primary) return null;
+
+  const multi = isMultiProductDiscovery(result.intent) && result.results.length > 1;
+
+  if (multi) {
+    return (
+      <div>
+        <p className="text-sm text-muted">
+          {result.explanations[0]?.reason ?? `${result.results.length} options matched your request.`}
+        </p>
+        <ProductResultGrid products={result.results} sessionId={sessionId} onAdded={onCartChange} />
+      </div>
+    );
+  }
+
   return (
     <div>
       <article className="flex gap-4">
@@ -783,7 +820,7 @@ function DecisionBody({ result }: { result: AgentResult }) {
           height={120}
           className="size-24 rounded-[12px] bg-canvas-2 object-cover md:size-28"
         />
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h3 className="text-xl font-semibold tracking-tight" translate="no" data-testid="product-name">
             {result.primary.name}
           </h3>
@@ -791,6 +828,9 @@ function DecisionBody({ result }: { result: AgentResult }) {
           <p className="mt-3 text-2xl font-semibold text-accent">
             <Money value={result.primary.price} />
           </p>
+          <div className="mt-4">
+            <AddToCartButton sessionId={sessionId} sku={result.primary.sku} onAdded={onCartChange} />
+          </div>
         </div>
       </article>
       <blockquote className="mt-6 border-l-2 border-accent pl-4 text-[15px] leading-relaxed text-ink">
@@ -798,9 +838,9 @@ function DecisionBody({ result }: { result: AgentResult }) {
       </blockquote>
       <dl className="mt-6 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <dt className="text-muted">AOV</dt>
+          <dt className="text-muted">Primary price</dt>
           <dd className="mt-1 text-lg font-semibold">
-            <Money value={result.subtotal} />
+            <Money value={result.primary.price} />
           </dd>
         </div>
         <div>
@@ -809,7 +849,10 @@ function DecisionBody({ result }: { result: AgentResult }) {
         </div>
       </dl>
       {result.attach ? (
-        <div className="mt-6 flex items-center gap-3 border-t border-line pt-5">
+        <div
+          className="mt-6 flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center"
+          data-testid="suggested-accessory"
+        >
           <Image
             src={result.attach.image}
             alt={result.attach.imageAlt}
@@ -817,7 +860,8 @@ function DecisionBody({ result }: { result: AgentResult }) {
             height={56}
             className="size-14 rounded-[8px] bg-canvas-2 object-cover"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Suggested accessory</p>
             <p className="font-medium" translate="no">
               {result.attach.name}
             </p>
@@ -827,6 +871,7 @@ function DecisionBody({ result }: { result: AgentResult }) {
             </p>
             <p className="mt-1 text-sm text-ink-soft">{result.explanations[1]?.reason}</p>
           </div>
+          <AddToCartButton sessionId={sessionId} sku={result.attach.sku} onAdded={onCartChange} />
         </div>
       ) : null}
     </div>
@@ -835,6 +880,7 @@ function DecisionBody({ result }: { result: AgentResult }) {
 
 function PaymentOverlay({
   phase,
+  checkoutTotal,
   result,
   error,
   recovery,
@@ -843,6 +889,7 @@ function PaymentOverlay({
   onClose,
 }: {
   phase: "captured" | "failed";
+  checkoutTotal: number;
   result: AgentResult;
   error: string | null;
   recovery: RecoveryEvaluation | null;
@@ -885,7 +932,7 @@ function PaymentOverlay({
               {phase === "captured" ? "Payment captured" : "Payment failed"}
             </h2>
             <p className="mt-3 text-3xl font-semibold tracking-tight tabular">
-              <Money value={result.subtotal} />
+              <Money value={checkoutTotal} />
             </p>
             {phase === "captured" ? (
               <>

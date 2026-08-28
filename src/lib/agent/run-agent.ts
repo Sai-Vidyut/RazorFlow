@@ -1,3 +1,4 @@
+import { discoverProducts, isMultiProductDiscovery } from "./discover-catalog";
 import { findProduct, marginPct } from "./parse-intent";
 import { rankProducts, recommendationReason } from "./match-catalog";
 import type { StructuredIntent } from "./structured-intent";
@@ -23,6 +24,7 @@ function insufficientInventoryResult(
     intent,
     primary,
     attach: null,
+    results: [primary],
     discountPct: 0,
     subtotal: primary.price * quantity,
     marginPct: marginPct(primary.price, primary.cost),
@@ -46,40 +48,46 @@ function insufficientInventoryResult(
   };
 }
 
+function emptyResult(intent: StructuredIntent, maxBudgetInr: number | null): AgentResult {
+  return {
+    status: "empty",
+    intent,
+    primary: null,
+    attach: null,
+    results: [],
+    discountPct: 0,
+    subtotal: 0,
+    marginPct: 0,
+    aovLift: 0,
+    explanations: [
+      {
+        decision: "No catalog match",
+        reason: "Nothing in the merchant catalog fits the stated constraints.",
+        evidence: maxBudgetInr != null ? `Budget ₹${maxBudgetInr}` : "No matching products",
+      },
+    ],
+    policies: [],
+    blockedReason: null,
+  };
+}
+
 export function runAgentWithParsed(
   intent: StructuredIntent,
   policies: MerchantPolicies,
   catalog: Product[],
 ): AgentResult {
   const quantity = intent.quantity;
-  const ranked = rankProducts(intent, catalog);
-  const primary = ranked[0]?.product ?? null;
-  const topScore = ranked[0]?.score ?? Number.NEGATIVE_INFINITY;
-  const explanations: AgentExplanation[] = [];
-  const policiesOut: AgentResult["policies"] = [];
   const maxBudgetInr = intentMaxBudgetInr(intent);
   const discountAsk = intent.constraints.maxDiscountPct;
+  const explanations: AgentExplanation[] = [];
+  const policiesOut: AgentResult["policies"] = [];
 
-  if (!primary || topScore < 0) {
-    return {
-      status: "empty",
-      intent,
-      primary: null,
-      attach: null,
-      discountPct: 0,
-      subtotal: 0,
-      marginPct: 0,
-      aovLift: 0,
-      explanations: [
-        {
-          decision: "No catalog match",
-          reason: "Nothing in the merchant catalog fits the stated constraints.",
-          evidence: maxBudgetInr != null ? `Budget ₹${maxBudgetInr}` : "No matching products",
-        },
-      ],
-      policies: [],
-      blockedReason: null,
-    };
+  const discovered = discoverProducts(intent, catalog);
+  const primary = discovered[0] ?? null;
+  const results = discovered;
+
+  if (!primary) {
+    return emptyResult(intent, maxBudgetInr);
   }
 
   if (primary.inventory < quantity) {
@@ -98,6 +106,7 @@ export function runAgentWithParsed(
       intent,
       primary,
       attach: null,
+      results,
       discountPct: 0,
       subtotal: primary.price * quantity,
       marginPct: marginPct(primary.price, primary.cost),
@@ -119,31 +128,27 @@ export function runAgentWithParsed(
 
   let attach: Product | null = null;
   const minAttachRate = policies.minAttachRatePct / 100;
-  if (policies.allowCrossSell && primary.attachSku && (primary.attachRate ?? 0) >= minAttachRate) {
+  if (
+    !isMultiProductDiscovery(intent) &&
+    policies.allowCrossSell &&
+    primary.attachSku &&
+    (primary.attachRate ?? 0) >= minAttachRate
+  ) {
     const candidate = findProduct(catalog, primary.attachSku);
     if (candidate && candidate.active && candidate.inventory >= quantity) {
-      const unitPrimary = discounted(primary.price, discountPct);
-      const unitAttach = candidate.price;
-      const priced = (unitPrimary + unitAttach) * quantity;
-      const fits =
-        !policies.requireBudgetFit ||
-        maxBudgetInr == null ||
-        priced <= maxBudgetInr;
-      if (fits) {
-        attach = candidate;
-        explanations.push({
-          decision: "Bundle suggested",
-          reason: `Bundle suggested because this accessory has a high attach rate for this product (${Math.round((primary.attachRate ?? 0) * 100)}%).`,
-          evidence: `${candidate.name} attach rate ${Math.round((primary.attachRate ?? 0) * 100)}%`,
-        });
-      }
+      attach = candidate;
+      explanations.push({
+        decision: "Accessory suggested",
+        reason: `Accessory suggested because this item has a high attach rate (${Math.round((primary.attachRate ?? 0) * 100)}%). Add it to cart if the buyer wants it.`,
+        evidence: `${candidate.name} attach rate ${Math.round((primary.attachRate ?? 0) * 100)}%`,
+      });
     }
   }
 
   const primaryLine = discounted(primary.price, discountPct) * quantity;
   const attachLine = attach ? attach.price * quantity : 0;
-  const subtotal = primaryLine + attachLine;
-  const cost = primary.cost * quantity + (attach ? attach.cost * quantity : 0);
+  const subtotal = primaryLine;
+  const cost = primary.cost * quantity;
   const margin = marginPct(subtotal, cost);
 
   policiesOut.push({
@@ -153,7 +158,7 @@ export function runAgentWithParsed(
       !policies.requireBudgetFit || maxBudgetInr == null || subtotal <= maxBudgetInr
         ? "allowed"
         : "blocked",
-    detail: maxBudgetInr ? `Basket ${subtotal} against ${maxBudgetInr}` : "No budget stated",
+    detail: maxBudgetInr ? `Primary ${subtotal} against ${maxBudgetInr}` : "No budget stated",
   });
   policiesOut.push({
     id: "margin",
@@ -171,7 +176,7 @@ export function runAgentWithParsed(
     id: "attach",
     label: "Cross-sell rule",
     result: "allowed",
-    detail: attach ? "Attach included with evidence" : "No attach, or attach would break budget",
+    detail: attach ? "Accessory suggested, not added to cart" : "No attach suggestion",
   });
   policiesOut.push({
     id: "inventory",
@@ -187,6 +192,7 @@ export function runAgentWithParsed(
       intent,
       primary,
       attach: null,
+      results,
       discountPct,
       subtotal: primaryLine,
       marginPct: marginPct(primaryLine, primary.cost * quantity),
@@ -194,12 +200,12 @@ export function runAgentWithParsed(
       explanations: [
         {
           decision: "Offer blocked",
-          reason: "Offer blocked because the basket exceeds the customer's stated budget.",
-          evidence: `Budget ${maxBudgetInr}, basket would be ${subtotal}`,
+          reason: "Offer blocked because the primary product exceeds the customer's stated budget.",
+          evidence: `Budget ${maxBudgetInr}, primary would be ${subtotal}`,
         },
       ],
       policies: policiesOut,
-      blockedReason: "Basket is above the stated budget.",
+      blockedReason: "Primary product is above the stated budget.",
     };
   }
 
@@ -209,6 +215,7 @@ export function runAgentWithParsed(
       intent,
       primary,
       attach: null,
+      results,
       discountPct,
       subtotal: primaryLine,
       marginPct: margin,
@@ -225,20 +232,27 @@ export function runAgentWithParsed(
     };
   }
 
-  explanations.unshift({
-    decision: "Recommended",
-    reason: recommendationReason(primary, intent),
-    evidence:
-      maxBudgetInr != null
-        ? `List ${primary.price} inside ${maxBudgetInr}`
-        : primary.blurb,
-  });
+  if (isMultiProductDiscovery(intent)) {
+    explanations.unshift({
+      decision: "Products matched",
+      reason: `Found ${results.length} catalog options for this request.`,
+      evidence: results.map((product) => product.name).join(", "),
+    });
+  } else {
+    explanations.unshift({
+      decision: "Recommended",
+      reason: recommendationReason(primary, intent),
+      evidence:
+        maxBudgetInr != null ? `List ${primary.price} inside ${maxBudgetInr}` : primary.blurb,
+    });
+  }
 
   return {
     status: "ready",
     intent,
     primary,
     attach,
+    results,
     discountPct,
     subtotal,
     marginPct: margin,

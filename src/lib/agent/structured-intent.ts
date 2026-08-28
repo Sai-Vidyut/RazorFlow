@@ -2,6 +2,13 @@ import type { Prisma } from "@prisma/client";
 
 export const STRUCTURED_INTENT_VERSION = 1 as const;
 
+export type IntentDiscovery = {
+  resultCount: number | null;
+  minResults: number;
+  sortBy: "price" | "score" | null;
+  sortOrder: "asc" | "desc";
+};
+
 export type StructuredIntent = {
   version: typeof STRUCTURED_INTENT_VERSION;
   query: string;
@@ -17,10 +24,21 @@ export type StructuredIntent = {
   };
   useCase: string | null;
   quantity: number;
+  discovery: IntentDiscovery;
+};
+
+export const DEFAULT_INTENT_DISCOVERY: IntentDiscovery = {
+  resultCount: null,
+  minResults: 1,
+  sortBy: null,
+  sortOrder: "asc",
 };
 
 export function createStructuredIntent(
-  partial: Omit<StructuredIntent, "version"> & { version?: typeof STRUCTURED_INTENT_VERSION },
+  partial: Omit<StructuredIntent, "version" | "discovery"> & {
+    version?: typeof STRUCTURED_INTENT_VERSION;
+    discovery?: Partial<IntentDiscovery>;
+  },
 ): StructuredIntent {
   return {
     version: STRUCTURED_INTENT_VERSION,
@@ -37,6 +55,10 @@ export function createStructuredIntent(
     },
     useCase: partial.useCase,
     quantity: partial.quantity > 0 ? partial.quantity : 1,
+    discovery: {
+      ...DEFAULT_INTENT_DISCOVERY,
+      ...partial.discovery,
+    },
   };
 }
 
@@ -48,6 +70,7 @@ export function structuredIntentFromDb(value: Prisma.JsonValue): StructuredInten
   const record = value as Record<string, unknown>;
   const constraints = (record.constraints ?? {}) as Record<string, unknown>;
   const preferences = (record.preferences ?? {}) as Record<string, unknown>;
+  const discovery = (record.discovery ?? {}) as Record<string, unknown>;
 
   return createStructuredIntent({
     query: String(record.query ?? ""),
@@ -63,6 +86,15 @@ export function structuredIntentFromDb(value: Prisma.JsonValue): StructuredInten
     },
     useCase: record.useCase == null ? null : String(record.useCase),
     quantity: toNullableInt(record.quantity) ?? 1,
+    discovery: {
+      resultCount: toNullableInt(discovery.resultCount),
+      minResults: toNullableInt(discovery.minResults) ?? DEFAULT_INTENT_DISCOVERY.minResults,
+      sortBy:
+        discovery.sortBy === "price" || discovery.sortBy === "score"
+          ? discovery.sortBy
+          : DEFAULT_INTENT_DISCOVERY.sortBy,
+      sortOrder: discovery.sortOrder === "desc" ? "desc" : "asc",
+    },
   });
 }
 

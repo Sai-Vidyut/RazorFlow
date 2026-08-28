@@ -44,6 +44,7 @@ export type AgentResult = {
   intent: StructuredIntent;
   primary: Product | null;
   attach: Product | null;
+  results: Product[];
   discountPct: number;
   subtotal: number;
   marginPct: number;

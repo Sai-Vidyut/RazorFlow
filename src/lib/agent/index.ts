@@ -23,6 +23,7 @@ export {
 export { extractIntent, parseIntent, setIntentProviderForTests } from "./intent";
 export { GeminiIntentProvider, createGeminiIntentProvider } from "./gemini-intent-provider";
 export { runAgentWithParsed } from "./run-agent";
+export { discoverProducts, isMultiProductDiscovery, DEFAULT_MULTI_RESULT_COUNT } from "./discover-catalog";
 export { rankProducts, scoreProduct, recommendationReason } from "./match-catalog";
 export { buildDemoPrompts, type DemoPrompt } from "./demo-prompts";
 export { findProduct, marginPct } from "./parse-intent";

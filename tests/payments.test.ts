@@ -87,11 +87,11 @@ describe("Razorpay payments", () => {
     expect(result.status).toBe("ready");
 
     const checkout = await createCheckoutForSession(sessionId, decisionId);
-    expect(checkout.amountPaise).toBe(828000);
+    expect(checkout.amountPaise).toBe(749000);
     expect(checkout.razorpayOrderId).toContain("order_rf_");
 
     const order = await db.order.findUnique({ where: { id: checkout.orderId } });
-    expect(order?.amountPaise).toBe(828000);
+    expect(order?.amountPaise).toBe(749000);
     expect(order?.decisionId).toBe(decisionId);
 
     const audit = await db.auditEvent.findMany({
@@ -182,7 +182,7 @@ describe("Razorpay payments", () => {
     });
 
     const mid = await getLedgerData();
-    expect(mid.weekGmv - before.weekGmv).toBeCloseTo(8280, 0);
+    expect(mid.weekGmv - before.weekGmv).toBeCloseTo(7490, 0);
 
     await verifyAndCapturePayment({
       orderId: checkout.orderId,

@@ -9,6 +9,7 @@ export {
   validateStructuredIntent,
   intentDisplayNeed,
   intentMaxBudgetInr,
+  isMultiProductDiscovery,
   type AgentExplanation,
   type AgentResult,
   type ParsedIntent,

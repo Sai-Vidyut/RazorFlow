@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { getConfiguredDemoMerchantId } from "@/lib/config/merchant";
 import { createBuyerSession } from "@/lib/services/sessions";
 import { runAgentForSession } from "@/lib/services/agent-run";
-import { createCheckoutForSession } from "@/lib/services/checkout";
+import { createCheckoutForSession, createCheckoutFromCart } from "@/lib/services/checkout";
+import { addToCart } from "@/lib/services/cart";
 import { queryRecoveryMetrics } from "@/lib/services/admin-recovery";
 import { recordPaymentFailure, verifyAndCapturePayment } from "@/lib/services/payments";
 import { evaluateRecovery, getPaymentAttemptsForDecision } from "@/lib/services/recovery";
@@ -85,6 +86,19 @@ describe("Revenue recovery (Phase 6)", () => {
 
   afterAll(async () => {
     await prisma.$disconnect();
+  });
+
+  it("evaluates retryable recovery after cart checkout failure", async () => {
+    const { sessionId } = await createBuyerSession(
+      "halo-anc Halo ANC for a 14-hour flight, budget ₹8,500",
+    );
+    await runAgentForSession(sessionId);
+    await addToCart(sessionId, "halo-anc");
+    const checkout = await createCheckoutFromCart(sessionId);
+    await recordPaymentFailure(checkout.orderId, "Card declined");
+
+    const evaluation = await evaluateRecovery(sessionId, checkout.decisionId, { recordAudit: false });
+    expect(evaluation.status).toBe("retryable");
   });
 
   it("evaluates retryable recovery after a failed payment", async () => {

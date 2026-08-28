@@ -5,10 +5,18 @@ import { recordAuditEvent } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { rupeesToPaise } from "@/lib/format";
 import { getRazorpayClient, getPublicRazorpayKeyId, isRazorpayConfigured } from "@/lib/razorpay/client";
+import {
+  CartError,
+  getCartForSession,
+  validateCartAgainstPolicies,
+  validateSessionCart,
+} from "@/lib/services/cart";
 import { getAvailableCatalog } from "@/lib/services/catalog";
 import { getMerchantPoliciesForAgent } from "@/lib/services/policies";
 import { evaluateRecovery, isRecoveryContext, nextAttemptNumber } from "@/lib/services/recovery";
 import { loadStructuredIntentFromSession } from "@/lib/services/sessions";
+
+export { CartError };
 
 export class CheckoutError extends Error {
   constructor(
@@ -65,9 +73,6 @@ export function assertDecisionAlignedWithFreshAgent(
   const freshSubtotalPaise = rupeesToPaise(fresh.subtotal);
 
   if (decision.primaryProductId !== freshPrimaryId) {
-    throw new CheckoutError(STALE_DECISION_MESSAGE, 409);
-  }
-  if (decision.attachProductId !== freshAttachId) {
     throw new CheckoutError(STALE_DECISION_MESSAGE, 409);
   }
   if (decision.subtotalPaise !== freshSubtotalPaise) {
@@ -245,6 +250,163 @@ export async function createCheckoutForSession(sessionId: string, decisionId: st
     keyId: getPublicRazorpayKeyId(),
     orderId: order.id,
     paymentId: payment.id,
+    razorpayOrderId: razorpayOrder.id,
+    amountPaise,
+    currency: "INR" as const,
+  };
+}
+
+export async function createCheckoutFromCart(sessionId: string) {
+  if (!isRazorpayConfigured()) {
+    throw new CheckoutError("Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.", 503);
+  }
+
+  const session = await db.buyerSession.findUnique({
+    where: { id: sessionId },
+    include: { intent: true },
+  });
+
+  if (!session) {
+    throw new CheckoutError("Session not found", 404);
+  }
+
+  if (session.status === "PAYMENT_CAPTURED") {
+    throw new CheckoutError("This session has already been paid.", 409);
+  }
+
+  const validation = await validateSessionCart(sessionId);
+  if (!validation.allowed) {
+    throw new CheckoutError(validation.blockedReason ?? "Cart cannot be checked out", 403);
+  }
+
+  const cart = validation.cart;
+  if (cart.lines.length === 0) {
+    throw new CheckoutError("Cart is empty", 400);
+  }
+
+  if (session.status === "PAYMENT_PENDING") {
+    throw new CheckoutError("A payment is already in progress for this session.", 409);
+  }
+
+  const blockingOrder = await db.order.findFirst({
+    where: {
+      sessionId,
+      status: { notIn: ["CANCELLED", "FAILED"] },
+      OR: [
+        { status: "PAID" },
+        {
+          status: "CREATED",
+          payments: { some: { status: "PENDING" } },
+        },
+      ],
+    },
+  });
+
+  if (blockingOrder) {
+    throw new CheckoutError("An active or completed order already exists for this session.", 409);
+  }
+
+  await db.agentDecision.updateMany({
+    where: { sessionId, supersededAt: null },
+    data: { supersededAt: new Date() },
+  });
+
+  const catalog = await getAvailableCatalog(session.merchantId);
+  const primaryLine = cart.lines[0]!;
+  const primaryProduct = catalog.find((item) => item.sku === primaryLine.sku);
+
+  const decision = await db.agentDecision.create({
+    data: {
+      sessionId,
+      primaryProductId: primaryProduct?.id ?? null,
+      attachProductId: null,
+      subtotalPaise: cart.subtotalPaise,
+      marginPct: validation.marginPct,
+      attachRevenuePaise: 0,
+      recommendationReason: "Checkout from user cart",
+      policyAllowed: true,
+      policyReason: null,
+      discountPct: 0,
+      quantity: 1,
+      status: "READY",
+    },
+  });
+
+  const attemptNumber = await nextAttemptNumber(sessionId, decision.id);
+  const amountPaise = cart.subtotalPaise;
+
+  const order = await db.order.create({
+    data: {
+      sessionId,
+      decisionId: decision.id,
+      amountPaise,
+      currency: "INR",
+      status: "CREATED",
+      attemptNumber,
+      lineItems: {
+        create: cart.lines.map((line) => ({
+          productId: line.productId,
+          sku: line.sku,
+          quantity: line.quantity,
+          unitPricePaise: line.unitPricePaise,
+          lineTotalPaise: line.lineTotalPaise,
+        })),
+      },
+    },
+  });
+
+  const payment = await db.payment.create({
+    data: {
+      orderId: order.id,
+      status: "PENDING",
+    },
+  });
+
+  await recordAuditEvent(sessionId, "ORDER_CREATED", "system", {
+    orderId: order.id,
+    decisionId: decision.id,
+    amountPaise,
+    source: "cart",
+    lineCount: cart.lines.length,
+  });
+
+  const client = getRazorpayClient();
+  const razorpayOrder = await client.orders.create({
+    amount: amountPaise,
+    currency: "INR",
+    receipt: `rf_${order.id}`,
+    notes: {
+      sessionId,
+      decisionId: decision.id,
+      orderId: order.id,
+      source: "cart",
+    },
+  });
+
+  await db.order.update({
+    where: { id: order.id },
+    data: { razorpayOrderId: razorpayOrder.id },
+  });
+
+  await db.buyerSession.update({
+    where: { id: sessionId },
+    data: { status: "PAYMENT_PENDING" },
+  });
+
+  await recordAuditEvent(sessionId, "CHECKOUT_STARTED", "system", {
+    orderId: order.id,
+    paymentId: payment.id,
+    razorpayOrderId: razorpayOrder.id,
+    amountPaise,
+    attemptNumber,
+    source: "cart",
+  });
+
+  return {
+    keyId: getPublicRazorpayKeyId(),
+    orderId: order.id,
+    paymentId: payment.id,
+    decisionId: decision.id,
     razorpayOrderId: razorpayOrder.id,
     amountPaise,
     currency: "INR" as const,

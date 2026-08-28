@@ -115,6 +115,8 @@ model Product {
   merchant              Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
   primaryDecisions      AgentDecision[] @relation("PrimaryProduct")
   attachDecisions       AgentDecision[] @relation("AttachProduct")
+  cartLines             CartLine[]
+  orderLineItems        OrderLineItem[]
 
   @@unique([merchantId, sku])
   @@index([merchantId])
@@ -151,6 +153,7 @@ model BuyerSession {
   intent      BuyerIntent?
   decisions   AgentDecision[]
   orders      Order[]
+  cartLines   CartLine[]
   auditEvents AuditEvent[]
   identity    BuyerIdentity?
 
@@ -210,9 +213,10 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  session  BuyerSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  decision AgentDecision @relation(fields: [decisionId], references: [id], onDelete: Cascade)
-  payments Payment[]
+  session   BuyerSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  decision  AgentDecision  @relation(fields: [decisionId], references: [id], onDelete: Cascade)
+  payments  Payment[]
+  lineItems OrderLineItem[]
 
   @@index([sessionId])
   @@index([decisionId])
@@ -355,6 +359,36 @@ model MerchantStaffEmail {
 
   @@unique([merchantId, email])
   @@index([merchantId])
+}
+
+model CartLine {
+  id        String   @id @default(cuid())
+  sessionId String
+  productId String
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session BuyerSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  product Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, productId])
+  @@index([sessionId])
+}
+
+model OrderLineItem {
+  id             String @id @default(cuid())
+  orderId        String
+  productId      String
+  sku            String
+  quantity       Int
+  unitPricePaise Int
+  lineTotalPaise Int
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
 }
 
 model AuditEvent {
