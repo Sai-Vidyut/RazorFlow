@@ -26,7 +26,8 @@ export { GeminiIntentProvider, createGeminiIntentProvider } from "./gemini-inten
 export { runAgentWithParsed } from "./run-agent";
 export { parseBudgetInr } from "./budget-parse";
 export { parseExclusionReferences, stripExclusionClauses } from "./exclusion-parse";
-export { discoverProducts, discoverProductsWithMeta, isMultiProductDiscovery, resolveEffectiveIntent, prepareIntentForDiscovery, DEFAULT_MULTI_RESULT_COUNT, MAX_DISCOVERY_RESULTS } from "./discover-catalog";
+export { discoverProducts, discoverProductsWithMeta, isMultiProductDiscovery, resolveEffectiveIntent, prepareIntentForDiscovery } from "./discover-catalog";
+export { DEFAULT_MULTI_RESULT_COUNT, MAX_DISCOVERY_RESULTS, resolveDiscoveryMode, resolveTakeCount, isBrowseDiscovery } from "./intent-discovery-policy";
 export { normalizeIntentCategory, productMatchesCategory, inferCategoryFromQuery } from "./category-match";
 export { rankProducts, scoreProduct, recommendationReason } from "./match-catalog";
 export { buildDemoPrompts, type DemoPrompt } from "./demo-prompts";

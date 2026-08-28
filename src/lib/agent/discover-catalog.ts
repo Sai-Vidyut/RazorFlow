@@ -8,6 +8,10 @@ import {
   type CatalogCategory,
 } from "./category-match";
 import {
+  isBrowseDiscovery,
+  resolveTakeCount,
+} from "./intent-discovery-policy";
+import {
   excludedSkusFromIntent,
   findExactProductMatch,
   mergeExclusions,
@@ -19,8 +23,10 @@ import { rankProducts } from "./match-catalog";
 import { createStructuredIntent, type StructuredIntent } from "./structured-intent";
 import type { Product } from "./types";
 
-export const DEFAULT_MULTI_RESULT_COUNT = 4;
-export const MAX_DISCOVERY_RESULTS = 12;
+export {
+  DEFAULT_MULTI_RESULT_COUNT,
+  MAX_DISCOVERY_RESULTS,
+} from "./intent-discovery-policy";
 
 export type DiscoveryMeta = {
   products: Product[];
@@ -37,30 +43,37 @@ function resolveIntentCategory(intent: StructuredIntent): CatalogCategory | null
   return normalizeIntentCategory(intent.category) ?? inferCategoryFromQuery(intent.query);
 }
 
-/** Merge structured constraints with query-derived budget and exclusions; never relax explicit buyer constraints. */
+/**
+ * Supplement Gemini structured intent with query-derived hard constraints only when missing.
+ * Never relaxes stricter Gemini values.
+ */
 export function resolveEffectiveIntent(intent: StructuredIntent): StructuredIntent {
-  const parsedInr = parseBudgetInr(intent.query);
-  const parsedPaise = parsedInr != null ? rupeesToPaise(parsedInr) : null;
-  const statedPaise = intent.constraints.maxPricePaise;
-  const maxPricePaise =
-    parsedPaise == null
-      ? statedPaise
-      : statedPaise == null
-        ? parsedPaise
-        : Math.min(statedPaise, parsedPaise);
+  let maxPricePaise = intent.constraints.maxPricePaise;
+  if (maxPricePaise == null) {
+    const parsedInr = parseBudgetInr(intent.query);
+    if (parsedInr != null) {
+      maxPricePaise = rupeesToPaise(parsedInr);
+    }
+  }
 
-  const parsedExclusions = parseExclusionReferences(intent.query).map((reference) => ({
-    reference,
-    resolvedSku: null as string | null,
-  }));
-  const exclusions = mergeExclusions(intent.exclusions, parsedExclusions);
+  let exclusions = intent.exclusions;
+  if (exclusions.length === 0) {
+    exclusions = parseExclusionReferences(intent.query).map((reference) => ({
+      reference,
+      resolvedSku: null as string | null,
+    }));
+  } else {
+    const parsedExclusions = parseExclusionReferences(intent.query).map((reference) => ({
+      reference,
+      resolvedSku: null as string | null,
+    }));
+    exclusions = mergeExclusions(intent.exclusions, parsedExclusions);
+  }
 
   const budgetChanged = maxPricePaise !== intent.constraints.maxPricePaise;
   const exclusionsChanged =
     exclusions.length !== intent.exclusions.length ||
-    exclusions.some(
-      (entry, index) => entry.reference !== intent.exclusions[index]?.reference,
-    );
+    exclusions.some((entry, index) => entry.reference !== intent.exclusions[index]?.reference);
 
   if (!budgetChanged && !exclusionsChanged) return intent;
 
@@ -146,35 +159,8 @@ function sortProducts(products: Product[], intent: StructuredIntent): Product[] 
   return sorted;
 }
 
-function resolveTakeCount(intent: StructuredIntent, availableCount: number): number {
-  if (availableCount === 0) return 0;
-
-  if (intent.discovery.resultCount != null) {
-    return Math.min(intent.discovery.resultCount, availableCount);
-  }
-
-  if (intent.discovery.minResults > 1) {
-    return Math.min(availableCount, MAX_DISCOVERY_RESULTS);
-  }
-
-  if (intent.discovery.sortBy != null && intent.category) {
-    return Math.min(availableCount, MAX_DISCOVERY_RESULTS);
-  }
-
-  return 1;
-}
-
 export function isMultiProductDiscovery(intent: StructuredIntent, resultCount = 1): boolean {
-  if (intent.discovery.resultCount != null && intent.discovery.resultCount > 1) {
-    return true;
-  }
-  if (intent.discovery.minResults > 1) {
-    return true;
-  }
-  if (resultCount > 1) {
-    return true;
-  }
-  return false;
+  return isBrowseDiscovery(intent, resultCount);
 }
 
 function emptyDiscoveryMeta(intent: StructuredIntent, category: CatalogCategory | null): DiscoveryMeta {

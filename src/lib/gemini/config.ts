@@ -1,4 +1,4 @@
-export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 export const GEMINI_REQUEST_TIMEOUT_MS = 15_000;
 
 export function getGeminiApiKey(): string | null {

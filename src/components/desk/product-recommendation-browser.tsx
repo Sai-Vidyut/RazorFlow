@@ -125,7 +125,7 @@ export function ProductRecommendationBrowser({
             </button>
           ) : (
             <p className="text-sm text-muted" data-testid="no-more-options">
-              That&apos;s all the matching options.
+              No more matching options.
             </p>
           )}
         </div>

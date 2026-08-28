@@ -82,6 +82,7 @@ function parseDiscovery(text: string, category: string | null): Partial<Structur
     !/\d+\s+(earbuds|headphones|speakers|products|options)/i.test(text);
 
   if (wantsSingle) {
+    discovery.mode = "single";
     discovery.resultCount = null;
     discovery.minResults = 1;
   } else if (
@@ -90,7 +91,10 @@ function parseDiscovery(text: string, category: string | null): Partial<Structur
     !/\b(the best|recommend|top pick)\b/i.test(text) &&
     !discovery.resultCount
   ) {
+    discovery.mode = "browse";
     discovery.minResults = Math.max(discovery.minResults ?? 1, 3);
+  } else if (wantsBrowse || (category && discovery.sortBy === "price")) {
+    discovery.mode = "browse";
   }
 
   return discovery;
@@ -121,6 +125,15 @@ export function parseIntent(raw: string): StructuredIntent {
   const discountMatch = text.match(/(\d{1,2})\s*%/);
   const category = parseCategory(text);
   const discovery = parseDiscovery(text, category);
+  const useCase = /gift|present/i.test(text) ? "gift" : /travel|flight/i.test(text) ? "travel" : null;
+
+  if (discovery.mode == null) {
+    if (useCase && !discovery.resultCount && (discovery.minResults ?? 1) <= 1) {
+      discovery.mode = "single";
+    } else if (category) {
+      discovery.mode = "browse";
+    }
+  }
 
   const features: string[] = [];
   const keywords: string[] = [];
@@ -150,6 +163,18 @@ export function parseIntent(raw: string): StructuredIntent {
   if (/hiking|trek/i.test(text)) {
     keywords.push("hiking");
   }
+  if (/\b(best|recommend|top pick)\b/i.test(text)) {
+    keywords.push("best");
+  }
+  if (/\bpremium\b/i.test(text)) {
+    keywords.push("premium");
+  }
+  if (/\bcheap\b/i.test(text)) {
+    keywords.push("cheap");
+  }
+  if (/\bgood\b/i.test(text)) {
+    keywords.push("good");
+  }
 
   return createStructuredIntent({
     query: text,
@@ -163,7 +188,7 @@ export function parseIntent(raw: string): StructuredIntent {
       features: [...new Set(features)],
       keywords: [...new Set(keywords)],
     },
-    useCase: /gift|present/i.test(text) ? "gift" : /travel|flight/i.test(text) ? "travel" : null,
+    useCase,
     quantity: 1,
     discovery,
     exclusions: parseExclusionReferences(text).map((reference) => ({

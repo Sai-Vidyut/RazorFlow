@@ -138,16 +138,31 @@ Agent recommendations are not cart items until the buyer taps **Add to cart**. T
 
 RazorFlow separates **understanding** from **catalog truth**:
 
-- **Gemini** (when configured) extracts structured buyer intent: category, budget, product exclusions, result count, sort order, and soft preferences. It does not receive the product catalog and does not choose SKUs.
-- **Deterministic code** resolves named products/exclusions against the Northline catalog, applies hard filters (category, budget, exclusions), ranks eligible products, and returns zero results when nothing qualifies.
-- **Policy engine** validates margin, discount, and order caps on the final offer.
+| Layer | Responsibility |
+| --- | --- |
+| **Gemini** (`gemini-intent-provider.ts`) | Natural-language → validated `StructuredIntent`: category, budget (paise), exclusions, `discovery.mode` (browse vs single), result count, sort, soft preferences |
+| **Deterministic engine** (`discover-catalog.ts`, `resolve-exact-product.ts`) | Exact product resolution → category filter → budget filter → exclusion filter → rank → sort → take N |
+| **Policy engine** | Margin, discount ceiling, order cap on the final offer |
 
-Example — `good headphones under 3k except northline commute lite`:
+Gemini never receives the product catalog and never outputs SKUs. Hard constraints are enforced before ranking; soft preferences (`good`, `travel`, `premium`) influence relevance only.
 
-- Commute Lite (₹2,490) is the only headphone under ₹3,000 in the demo catalog.
-- Excluding Commute Lite leaves no valid matches, so discovery correctly returns **empty** with an explicit message. It must not return Bassline Over (₹4,290) or ignore the exclusion.
+**Browse vs single:** `discovery.mode=browse` returns up to 4 qualifying products for Agent Decision pagination (`Option 1 of N`, **Next product**, **No more matching options**). `discovery.mode=single` returns one primary recommendation (e.g. exact product name, best/recommend).
 
-When `GEMINI_API_KEY` is unset or Gemini fails validation, `parse-intent.ts` provides a deterministic fallback with the same hard-constraint pipeline.
+Example — `good headphones under 3k except Commute Lite`:
+
+- Gemini extracts category, maxPricePaise `300000`, exclusion `Commute Lite`, mode `browse`.
+- Deterministic code resolves `Commute Lite` → `commute-lite`, filters headphones ≤ ₹3,000, excludes that SKU.
+- Only in-budget headphone is Commute Lite; after exclusion → **empty** (never Bassline Over at ₹4,290).
+
+When `GEMINI_API_KEY` is unset or Gemini fails, `parse-intent.ts` provides a deterministic fallback through the same discovery pipeline.
+
+**Live Gemini validation** (requires `GEMINI_API_KEY` + `DATABASE_URL`):
+
+```bash
+GEMINI_MODEL=gemini-3.6-flash npm run validate:gemini-discovery
+```
+
+Default model is `gemini-3.6-flash` (`GEMINI_MODEL` in `.env.local`).
 
 ## Tests
 

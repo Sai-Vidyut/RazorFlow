@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:e2e": "PLAYWRIGHT_HTML_OPEN=never playwright test",
     "smoke:gemini-intent": "tsx scripts/smoke-gemini-intent.ts",
+    "validate:gemini-discovery": "tsx scripts/validate-gemini-discovery.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",

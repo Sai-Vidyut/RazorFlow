@@ -32,7 +32,8 @@ export const GEMINI_STRUCTURED_INTENT_JSON_SCHEMA = {
       properties: {
         maxPricePaise: {
           type: ["integer", "null"],
-          description: "Maximum budget in paise (INR). Example: ₹15,000 => 1500000.",
+          description:
+            "Maximum budget in paise (INR). Hard cap. Example: under ₹3,000 or 3k => 300000. Understand under/below/less than/max/within/budget of/₹3k/3 thousand.",
         },
         minPricePaise: {
           type: ["integer", "null"],
@@ -73,6 +74,12 @@ export const GEMINI_STRUCTURED_INTENT_JSON_SCHEMA = {
       type: "object",
       additionalProperties: false,
       properties: {
+        mode: {
+          type: ["string", "null"],
+          enum: ["browse", "single", null],
+          description:
+            "browse = show multiple qualifying options to compare; single = one primary recommendation (best/recommend/top pick). Default browse when the buyer asks to show, list, or browse a category.",
+        },
         resultCount: {
           type: ["integer", "null"],
           description: "Exact number of products to browse when stated (e.g. show me 3 headphones).",
@@ -192,12 +199,19 @@ function readDiscovery(value: unknown): Partial<StructuredIntent["discovery"]> {
   }
   const record = value as Record<string, unknown>;
   const sortBy = record.sortBy;
+  const mode = record.mode;
   return {
+    mode: mode === "browse" || mode === "single" ? mode : null,
     resultCount: sanitizeNullableInt(record.resultCount, "discovery.resultCount"),
-    minResults: sanitizeNullableInt(record.minResults, "discovery.minResults") ?? undefined,
+    minResults: clampMinResults(sanitizeNullableInt(record.minResults, "discovery.minResults")),
     sortBy: sortBy === "price" || sortBy === "score" ? sortBy : null,
     sortOrder: record.sortOrder === "desc" ? "desc" : "asc",
   };
+}
+
+function clampMinResults(value: number | null): number | undefined {
+  if (value == null) return undefined;
+  return value < 1 ? 1 : value;
 }
 
 function readObject(value: unknown, label: string): Record<string, unknown> {

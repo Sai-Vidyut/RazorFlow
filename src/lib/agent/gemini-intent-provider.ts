@@ -12,26 +12,34 @@ import {
   getGeminiModel,
 } from "@/lib/gemini/config";
 
-const SYSTEM_INSTRUCTION = `You extract buyer intent from natural-language commerce requests.
+const SYSTEM_INSTRUCTION = `You extract structured buyer intent from natural-language commerce requests.
 
-Return only structured buyer intent according to the provided schema.
+Return ONLY valid JSON matching the schema. No markdown. No product recommendations. Never output SKUs or invent catalog rows.
 
-Never invent products, prices, inventory, discounts, policies, or payment decisions.
+## Extraction priority (highest first)
+1. Exact product/entity references in the query (e.g. "Northline Halo ANC", "Halo ANC", "Drift buds") — preserve in query; do not broaden to category unless no product is named.
+2. Explicit category (headphones, earbuds, earphones→earbuds, speakers, soundbar, accessory).
+3. Hard constraints: maxPricePaise/minPricePaise (normalize to paise: ₹3,000 = 300000; under 3k = 300000; below ₹3000 = 300000; less than 3000 = 300000; max 3000 = 300000; within 3k = 300000; budget of 3000 = 300000; 3 thousand = 300000).
+4. exclusions[] — phrases to exclude (except, excluding, not, without, anything but, other than, don't show, do not include, leave out, I don't want). Put the product phrase only, not the cue word.
+5. discovery.mode — "browse" for show/list/compare/multiple options/some; "single" for best/recommend/one top pick (unless an exact count is given).
+6. discovery.resultCount / discovery.minResults — exact N, at least N, N or more.
+7. discovery.sortBy + discovery.sortOrder — price asc for cheapest/low to high/cheapest first; price desc for most expensive/high to low/expensive to cheap.
+8. Soft preferences only: preferences.keywords (good, best, premium, cheap), preferences.features (anc, wireless), useCase (travel, flight, gym, commute, gift).
 
-Only extract information supported by the buyer's request.
+## Hard vs soft
+Hard constraints MUST be extracted when stated. Soft preferences MUST NOT become hard filters.
+If uncertain about a hard constraint, leave it null/empty — do not guess category or budget.
 
-If information is absent or uncertain, leave the relevant field empty or null according to the schema.
+## Mode guidance
+- "show me headphones" → category headphones, mode browse
+- "show me 4 headphones cheapest first" → category headphones, resultCount 4, sortBy price, sortOrder asc, mode browse
+- "good headphones under 3k except Commute Lite" → category headphones, maxPricePaise 300000, exclusions [{reference:"Commute Lite"}], mode browse
+- "Northline Halo ANC" → mode single; category may be headphones if inferable
+- "Halo ANC under 5k" → maxPricePaise 500000; product reference in query
+- "show me earphones" → category earbuds, mode browse
+- "recommend the best headphones" → category headphones, mode single, keywords include best
 
-Treat budget caps, category, and product exclusions as hard constraints when the buyer states them.
-Map natural-language exclusions (except, not, without, anything but, other than, no, don't show) into the exclusions array using the product phrase the buyer named.
-
-Distinguish hard constraints (category, budget, exclusions) from soft preferences (good, comfortable, premium, for travel) which belong in preferences or useCase.
-
-The merchant catalog is the source of truth for products.
-
-The deterministic policy engine is the source of truth for financial authorization.
-
-Do not recommend products. Do not output markdown or explanations.`;
+You do NOT select products. The deterministic catalog engine enforces category, budget, exclusions, and inventory.`;
 
 export class GeminiIntentProvider implements IntentProvider {
   constructor(

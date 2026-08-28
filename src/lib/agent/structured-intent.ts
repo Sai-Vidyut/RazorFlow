@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 export const STRUCTURED_INTENT_VERSION = 1 as const;
 
 export type IntentDiscovery = {
+  mode: "browse" | "single" | null;
   resultCount: number | null;
   minResults: number;
   sortBy: "price" | "score" | null;
@@ -35,6 +36,7 @@ export type StructuredIntent = {
 };
 
 export const DEFAULT_INTENT_DISCOVERY: IntentDiscovery = {
+  mode: null,
   resultCount: null,
   minResults: 1,
   sortBy: null,
@@ -100,6 +102,10 @@ export function structuredIntentFromDb(value: Prisma.JsonValue): StructuredInten
     useCase: record.useCase == null ? null : String(record.useCase),
     quantity: toNullableInt(record.quantity) ?? 1,
     discovery: {
+      mode:
+        discovery.mode === "browse" || discovery.mode === "single"
+          ? discovery.mode
+          : DEFAULT_INTENT_DISCOVERY.mode,
       resultCount: toNullableInt(discovery.resultCount),
       minResults: toNullableInt(discovery.minResults) ?? DEFAULT_INTENT_DISCOVERY.minResults,
       sortBy:

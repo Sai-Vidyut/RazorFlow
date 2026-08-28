@@ -56,11 +56,18 @@ Gemini never receives the product catalog. Gemini never sets prices, discounts, 
 
 | Layer | Role |
 | --- | --- |
-| **Gemini** | Understand natural language; extract `StructuredIntent` (category, budget, exclusions, browse count, sort, soft preferences) |
+| **Gemini** | Understand natural language; extract `StructuredIntent` (category, budget, exclusions, `discovery.mode`, browse count, sort, soft preferences) |
 | **Deterministic catalog engine** | Resolve product references against PostgreSQL catalog; enforce hard filters; rank and sort eligible products |
 | **Policy engine** | Margin floor, discount ceiling, order cap, budget-fit guardrails on the chosen offer |
 
 Hard constraints (category, max/min price, product exclusions) are enforced **before** ranking. Soft preferences (`good`, `comfortable`, `for travel`) influence relevance scoring only and cannot override hard filters.
+
+`discovery.mode`:
+
+- **`browse`** — return multiple qualifying products; Agent Decision paginates with Next product / No more matching options
+- **`single`** — one primary recommendation (exact product name, best/recommend)
+
+Live validation: `GEMINI_MODEL=gemini-3.6-flash npm run validate:gemini-discovery` (requires `GEMINI_API_KEY`).
 
 ### Exclusions example
 
@@ -171,7 +178,7 @@ Required env vars:
 DATABASE_URL=
 DEMO_MERCHANT_ID=northline-audio
 GEMINI_API_KEY=
-GEMINI_MODEL=gemini-3.5-flash-lite
+GEMINI_MODEL=gemini-3.6-flash
 RAZORPAY_KEY_ID=
 RAZORPAY_KEY_SECRET=
 RAZORPAY_WEBHOOK_SECRET=

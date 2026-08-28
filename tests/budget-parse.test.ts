@@ -15,8 +15,16 @@ describe("parseBudgetInr", () => {
     expect(parseBudgetInr("halo-anc Halo ANC for a 14-hour flight, budget ₹8,500")).toBe(8500);
   });
 
-  it("parses under 5k", () => {
-    expect(parseBudgetInr("show me headphones under 5k")).toBe(5000);
+  it("parses less than 3000", () => {
+    expect(parseBudgetInr("headphones less than 3000")).toBe(3000);
+  });
+
+  it("parses max 3000", () => {
+    expect(parseBudgetInr("max 3000")).toBe(3000);
+  });
+
+  it("parses 3 thousand", () => {
+    expect(parseBudgetInr("budget of 3 thousand")).toBe(3000);
   });
 
   it("returns null when no budget cue exists", () => {
