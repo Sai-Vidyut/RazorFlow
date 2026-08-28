@@ -1,6 +1,29 @@
 import { expect, test } from "@playwright/test";
 import { isRazorpayConfigured } from "./helpers/env";
-import { authenticateMerchant, ensureVerifiedBuyerForCheckout, prepareE2EBaseline, SEED_POLICIES } from "./helpers/baseline";
+import {
+  authenticateMerchant,
+  ensureVerifiedBuyerForCheckout,
+  prepareE2EBaseline,
+  SEED_POLICIES,
+} from "./helpers/baseline";
+
+async function ensureAdminPolicyDiscount(
+  request: import("@playwright/test").APIRequestContext,
+  maxDiscountPct: number,
+) {
+  await expect
+    .poll(async () => {
+      const current = await request.get("/api/admin/policies");
+      if (!current.ok()) return false;
+      const payload = (await current.json()) as { policies: Record<string, unknown> };
+      if (payload.policies.maxDiscountPct === maxDiscountPct) return true;
+      const save = await request.put("/api/admin/policies", {
+        data: { ...payload.policies, maxDiscountPct },
+      });
+      return save.ok();
+    }, { timeout: 15_000 })
+    .toBe(true);
+}
 
 test.describe("Phase 7 journey regression", () => {
   test.describe.configure({ mode: "serial" });
@@ -26,21 +49,11 @@ test.describe("Phase 7 journey regression", () => {
     const payload = (await current.json()) as { policies: Record<string, unknown> };
 
     try {
-      const save = await page.request.put("/api/admin/policies", {
-        data: { ...payload.policies, maxDiscountPct: 5 },
-      });
-      expect(save.ok()).toBeTruthy();
-
-      await expect
-        .poll(async () => {
-          const verify = await page.request.get("/api/admin/policies");
-          const verified = (await verify.json()) as { policies: { maxDiscountPct: number } };
-          return verified.policies.maxDiscountPct;
-        })
-        .toBe(5);
+      await ensureAdminPolicyDiscount(page.request, 5);
 
       await page.goto("/desk");
       await page.getByTestId("demo-prompt-policy-block").click();
+      await ensureAdminPolicyDiscount(page.request, 5);
       await page.getByTestId("run-agent").click();
       await expect(page.getByTestId("policy-result")).toContainText(/above the 5% ceiling/i, {
         timeout: 15_000,

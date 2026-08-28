@@ -40,6 +40,9 @@ test.describe("Account modal UX", () => {
     });
     expect(register.ok()).toBeTruthy();
 
+    // API registration sets account cookies; clear them so the landing top bar still shows Log in.
+    await page.context().clearCookies();
+
     const dialog = await openCreateAccountModal(page);
     await dialog.locator('input[type="email"]').fill(email);
     await dialog.getByTestId("auth-register-password").fill(TEST_PASSWORD);
