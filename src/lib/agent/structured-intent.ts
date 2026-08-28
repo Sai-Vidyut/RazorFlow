@@ -9,6 +9,12 @@ export type IntentDiscovery = {
   sortOrder: "asc" | "desc";
 };
 
+/** Buyer-requested product exclusion; resolvedSku is filled deterministically against the catalog. */
+export type IntentExclusion = {
+  reference: string;
+  resolvedSku: string | null;
+};
+
 export type StructuredIntent = {
   version: typeof STRUCTURED_INTENT_VERSION;
   query: string;
@@ -25,6 +31,7 @@ export type StructuredIntent = {
   useCase: string | null;
   quantity: number;
   discovery: IntentDiscovery;
+  exclusions: IntentExclusion[];
 };
 
 export const DEFAULT_INTENT_DISCOVERY: IntentDiscovery = {
@@ -35,9 +42,10 @@ export const DEFAULT_INTENT_DISCOVERY: IntentDiscovery = {
 };
 
 export function createStructuredIntent(
-  partial: Omit<StructuredIntent, "version" | "discovery"> & {
+  partial: Omit<StructuredIntent, "version" | "discovery" | "exclusions"> & {
     version?: typeof STRUCTURED_INTENT_VERSION;
     discovery?: Partial<IntentDiscovery>;
+    exclusions?: IntentExclusion[];
   },
 ): StructuredIntent {
   return {
@@ -59,6 +67,10 @@ export function createStructuredIntent(
       ...DEFAULT_INTENT_DISCOVERY,
       ...partial.discovery,
     },
+    exclusions: (partial.exclusions ?? []).map((exclusion) => ({
+      reference: exclusion.reference,
+      resolvedSku: exclusion.resolvedSku,
+    })),
   };
 }
 
@@ -71,6 +83,7 @@ export function structuredIntentFromDb(value: Prisma.JsonValue): StructuredInten
   const constraints = (record.constraints ?? {}) as Record<string, unknown>;
   const preferences = (record.preferences ?? {}) as Record<string, unknown>;
   const discovery = (record.discovery ?? {}) as Record<string, unknown>;
+  const exclusions = Array.isArray(record.exclusions) ? record.exclusions : [];
 
   return createStructuredIntent({
     query: String(record.query ?? ""),
@@ -95,6 +108,18 @@ export function structuredIntentFromDb(value: Prisma.JsonValue): StructuredInten
           : DEFAULT_INTENT_DISCOVERY.sortBy,
       sortOrder: discovery.sortOrder === "desc" ? "desc" : "asc",
     },
+    exclusions: exclusions
+      .map((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+        const row = entry as Record<string, unknown>;
+        const reference = String(row.reference ?? "").trim();
+        if (!reference) return null;
+        return {
+          reference,
+          resolvedSku: row.resolvedSku == null ? null : String(row.resolvedSku),
+        };
+      })
+      .filter((entry): entry is IntentExclusion => entry != null),
   });
 }
 

@@ -134,6 +134,21 @@ The app listens on `http://localhost:3010`.
 
 Agent recommendations are not cart items until the buyer taps **Add to cart**. The Transaction stage is the single source of truth for the active cart during checkout.
 
+## Hybrid AI discovery
+
+RazorFlow separates **understanding** from **catalog truth**:
+
+- **Gemini** (when configured) extracts structured buyer intent: category, budget, product exclusions, result count, sort order, and soft preferences. It does not receive the product catalog and does not choose SKUs.
+- **Deterministic code** resolves named products/exclusions against the Northline catalog, applies hard filters (category, budget, exclusions), ranks eligible products, and returns zero results when nothing qualifies.
+- **Policy engine** validates margin, discount, and order caps on the final offer.
+
+Example — `good headphones under 3k except northline commute lite`:
+
+- Commute Lite (₹2,490) is the only headphone under ₹3,000 in the demo catalog.
+- Excluding Commute Lite leaves no valid matches, so discovery correctly returns **empty** with an explicit message. It must not return Bassline Over (₹4,290) or ignore the exclusion.
+
+When `GEMINI_API_KEY` is unset or Gemini fails validation, `parse-intent.ts` provides a deterministic fallback with the same hard-constraint pipeline.
+
 ## Tests
 
 ```bash

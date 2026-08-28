@@ -50,7 +50,29 @@ StructuredIntent persisted on BuyerIntent
 matcher → policy → checkout → recovery
 ```
 
-Gemini never receives the product catalog. Gemini never sets prices, discounts, or payment state.
+Gemini never receives the product catalog. Gemini never sets prices, discounts, or payment state. Gemini never selects purchasable database rows.
+
+### Hybrid responsibilities
+
+| Layer | Role |
+| --- | --- |
+| **Gemini** | Understand natural language; extract `StructuredIntent` (category, budget, exclusions, browse count, sort, soft preferences) |
+| **Deterministic catalog engine** | Resolve product references against PostgreSQL catalog; enforce hard filters; rank and sort eligible products |
+| **Policy engine** | Margin floor, discount ceiling, order cap, budget-fit guardrails on the chosen offer |
+
+Hard constraints (category, max/min price, product exclusions) are enforced **before** ranking. Soft preferences (`good`, `comfortable`, `for travel`) influence relevance scoring only and cannot override hard filters.
+
+### Exclusions example
+
+Request: `good headphones under 3k except northline commute lite`
+
+1. Gemini (or deterministic fallback) extracts: category `headphones`, max budget ₹3,000, exclusion `Commute Lite`.
+2. Deterministic code resolves `Commute Lite` → SKU `commute-lite` (unique phrase match).
+3. Discovery filters: headphones → price ≤ ₹3,000 → exclude `commute-lite`.
+4. Northline's only in-budget headphone is Commute Lite (₹2,490); after exclusion, **zero products** remain.
+5. Desk shows: `No headphones available under ₹3,000 after excluding Northline Commute Lite.` Transaction stays empty (no stale primary product).
+
+Unresolved exclusion references (e.g. brand-only `except Northline`) are kept on intent but **not** applied as a broad filter.
 
 ## Surfaces
 
@@ -86,7 +108,7 @@ Buyer and merchant API routes enforce session/order ownership and merchant scopi
 `src/lib/agent/` is split into:
 
 1. **Intent** (`intent.ts`, `gemini-intent-provider.ts`, `parse-intent.ts`, `structured-intent.ts`) — Gemini structured extraction with validated `StructuredIntent` JSON and deterministic fallback
-2. **Matching** (`match-catalog.ts`, `discover-catalog.ts`, `category-match.ts`) — deterministic pipeline: normalize category → filter by category (strict, no cross-category padding) → budget → availability → rank → sort → take N. Gemini never overrides an explicit category constraint.
+2. **Matching** (`match-catalog.ts`, `discover-catalog.ts`, `category-match.ts`, `resolve-exact-product.ts`, `exclusion-parse.ts`) — deterministic pipeline: reconcile intent → exact entity resolution → filter by category (strict) → hard budget filter → hard exclusion filter → rank → sort → take N. Gemini never overrides an explicit category, budget, or exclusion constraint.
 3. **Policy + decision** (`run-agent.ts`) — deterministic margin, budget, discount, order-cap guardrails. Cross-sell accessories are suggested only; they are never added to checkout totals automatically.
 
 Execution runs on the server via `POST /api/agent/run`. Stored session intent is the source of truth at agent run time.
@@ -101,7 +123,7 @@ When discovery returns more than one product, the desk **Agent Decision** panel 
 - Partial matches communicate when fewer products exist than requested (never padded with unrelated categories)
 - Single-intent prompts (e.g. flight headphones) still show one primary recommendation
 
-Sorting runs **after** category and budget filters. Example: earbuds under ₹5000, cheapest first → filter earbuds → filter price → sort ascending → take N.
+Sorting runs **after** category, budget, and exclusion filters. Example: earbuds under ₹5000, cheapest first → filter earbuds → filter price → exclude named SKUs → sort ascending → take N.
 
 ## Cart
 
@@ -114,7 +136,6 @@ An explicitly user-controlled cart integrated into the **Transaction** stage of 
 - Already-in-cart products show **Added to cart**
 - Quantity +/- and **Remove** controls live in Transaction (reuse `PATCH` / `DELETE /api/cart`)
 - **Suggested accessories** are optional; they do not affect subtotals until added
-- Top-bar cart indicator shows item count and scrolls to Transaction on desk (no standalone cart page)
 - Checkout uses `POST /api/checkout` with `{ sessionId, source: "cart" }` after policy validation on cart contents
 - Orders persist `OrderLineItem` rows for multi-SKU audit; `amountPaise` remains the server-computed cart total
 

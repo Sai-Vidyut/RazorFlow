@@ -15,7 +15,7 @@ export class StructuredIntentValidationError extends Error {
 export const GEMINI_STRUCTURED_INTENT_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["query", "category", "constraints", "preferences", "useCase", "quantity"],
+  required: ["query", "category", "constraints", "preferences", "useCase", "quantity", "exclusions"],
   properties: {
     query: {
       type: "string",
@@ -52,22 +52,62 @@ export const GEMINI_STRUCTURED_INTENT_JSON_SCHEMA = {
         features: {
           type: "array",
           items: { type: "string" },
-          description: "Product features or attributes the buyer wants.",
+          description: "Hard or soft product features the buyer wants.",
         },
         keywords: {
           type: "array",
           items: { type: "string" },
-          description: "Additional intent keywords such as use-context terms.",
+          description: "Soft preference keywords such as good, comfortable, premium, or use-context terms.",
         },
       },
     },
     useCase: {
       type: ["string", "null"],
-      description: "Primary use case such as travel, gift, or commute.",
+      description: "Primary use case such as travel, gift, commute, or gym.",
     },
     quantity: {
       type: "integer",
       description: "Requested quantity. Default to 1 when not stated.",
+    },
+    discovery: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        resultCount: {
+          type: ["integer", "null"],
+          description: "Exact number of products to browse when stated (e.g. show me 3 headphones).",
+        },
+        minResults: {
+          type: "integer",
+          description: "Minimum browse count when the buyer asks for several options.",
+        },
+        sortBy: {
+          type: ["string", "null"],
+          enum: ["price", "score", null],
+          description: "Sort field when the buyer asks for cheapest, most expensive, or relevance.",
+        },
+        sortOrder: {
+          type: "string",
+          enum: ["asc", "desc"],
+          description: "Ascending for cheapest-first; descending for most expensive first.",
+        },
+      },
+    },
+    exclusions: {
+      type: "array",
+      description:
+        "Products the buyer explicitly wants excluded (except, not, without, anything but, other than, no, don't show).",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["reference"],
+        properties: {
+          reference: {
+            type: "string",
+            description: "Product name or distinctive phrase to exclude, as stated by the buyer.",
+          },
+        },
+      },
     },
   },
 } as const;
@@ -123,7 +163,27 @@ export function validateStructuredIntent(raw: unknown, rawRequest: string): Stru
     useCase,
     quantity,
     discovery: readDiscovery(record.discovery),
+    exclusions: readExclusions(record.exclusions),
   });
+}
+
+function readExclusions(value: unknown): Array<{ reference: string; resolvedSku: null }> {
+  if (!Array.isArray(value)) return [];
+  const exclusions: Array<{ reference: string; resolvedSku: null }> = [];
+  const seen = new Set<string>();
+
+  for (const entry of value.slice(0, 8)) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const record = entry as Record<string, unknown>;
+    const reference = sanitizeText(record.reference);
+    if (!reference || reference.length < 3) continue;
+    const key = reference.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    exclusions.push({ reference, resolvedSku: null });
+  }
+
+  return exclusions;
 }
 
 function readDiscovery(value: unknown): Partial<StructuredIntent["discovery"]> {

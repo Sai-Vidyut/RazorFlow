@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Gauge, ShieldCheck, Storefront } from "@phosphor-icons/react";
 import { AccountTopBarActions } from "@/components/auth/account-top-bar-actions";
-import { CartIndicator } from "@/components/cart/cart-indicator";
 import { Mark } from "@/components/mark";
 import { PUBLIC_NAV } from "@/components/shell/nav-config";
 import { useScrollCollapse } from "@/components/shell/use-scroll-collapse";
@@ -89,7 +88,6 @@ export function AppTopBar({
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <CartIndicator sessionId={sessionId} />
                 <AccountTopBarActions sessionId={sessionId} />
                 {variant === "desk" ? (
                   <Link

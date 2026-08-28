@@ -41,7 +41,10 @@ test.describe("Desk transaction cart", () => {
   test("browsing recommendations does not add to cart", async ({ page }) => {
     await page.goto("/desk");
     const browser = await runAgentForMultiProduct(page);
-    test.skip(!browser, "Agent returned a single recommendation for this intent");
+    if (!browser) {
+      test.skip(true, "Agent returned a single recommendation for this intent");
+      return;
+    }
     await expect(page.getByTestId("cart-empty-hint")).toBeVisible();
     await page.getByTestId("next-product").click();
     await expect(page.getByTestId("option-indicator")).toContainText("Option 2 of");
@@ -51,7 +54,10 @@ test.describe("Desk transaction cart", () => {
   test("explicit add adds the visible recommendation to cart", async ({ page }) => {
     await page.goto("/desk");
     const browser = await runAgentForMultiProduct(page);
-    test.skip(!browser, "Agent returned a single recommendation for this intent");
+    if (!browser) {
+      test.skip(true, "Agent returned a single recommendation for this intent");
+      return;
+    }
 
     const firstSku = await browser.locator("[data-active-sku]").getAttribute("data-active-sku");
     await page.getByTestId("next-product").click();
@@ -64,13 +70,15 @@ test.describe("Desk transaction cart", () => {
     expect(activeSku).toBeTruthy();
     await browser.getByTestId(`add-to-cart-${activeSku}`).click();
     await expect(page.getByTestId("cart-summary")).toContainText(productName);
-    await expect(page.getByTestId("cart-badge")).toBeVisible();
   });
 
   test("multiple products can be added independently", async ({ page }) => {
     await page.goto("/desk");
     const browser = await runAgentForMultiProduct(page);
-    test.skip(!browser, "Agent returned a single recommendation for this intent");
+    if (!browser) {
+      test.skip(true, "Agent returned a single recommendation for this intent");
+      return;
+    }
 
     const firstSku = await browser.locator("[data-active-sku]").getAttribute("data-active-sku");
     expect(firstSku).toBeTruthy();
@@ -105,16 +113,6 @@ test.describe("Desk transaction cart", () => {
     await expect(page.getByTestId("cart-empty-hint")).toBeVisible();
     await expect(page.getByTestId("checkout-total")).toHaveCount(0);
     await expect(page.getByTestId("authorize")).toBeDisabled();
-  });
-
-  test("cart indicator scrolls to Transaction cart on desk", async ({ page }) => {
-    await page.goto("/desk");
-    await runAgentForHalo(page);
-    await page.getByTestId("add-to-cart-halo-anc").click();
-    await expect(page.getByTestId("cart-badge")).toBeVisible();
-
-    await page.getByTestId("cart-indicator").click();
-    await expect(page.getByTestId("transaction-cart")).toBeVisible();
   });
 
   test("mobile desk cart has touch targets without horizontal overflow", async ({ page }) => {

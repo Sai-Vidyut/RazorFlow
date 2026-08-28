@@ -1,4 +1,6 @@
 import { rupeesToPaise } from "@/lib/format";
+import { parseBudgetInr } from "./budget-parse";
+import { parseExclusionReferences } from "./exclusion-parse";
 import { inferCategoryFromQuery } from "./category-match";
 import { createStructuredIntent, type StructuredIntent } from "./structured-intent";
 import type { Product } from "./types";
@@ -94,13 +96,10 @@ function parseDiscovery(text: string, category: string | null): Partial<Structur
   return discovery;
 }
 
+export { parseBudgetInr } from "./budget-parse";
+
 function parseBudget(text: string): number | null {
-  const underMatch = text.match(/under\s+(?:₹|rs\.?\s*)\s*([\d,]+)/i);
-  if (underMatch) {
-    return Number(underMatch[1].replaceAll(",", ""));
-  }
-  const budgetMatch = text.match(/(?:₹|rs\.?\s*)\s*([\d,]+)/i) ?? text.match(/\b(\d{3,6})\b/);
-  return budgetMatch ? Number(budgetMatch[1].replaceAll(",", "")) : null;
+  return parseBudgetInr(text);
 }
 
 function parseCategory(text: string): string | null {
@@ -167,6 +166,10 @@ export function parseIntent(raw: string): StructuredIntent {
     useCase: /gift|present/i.test(text) ? "gift" : /travel|flight/i.test(text) ? "travel" : null,
     quantity: 1,
     discovery,
+    exclusions: parseExclusionReferences(text).map((reference) => ({
+      reference,
+      resolvedSku: null,
+    })),
   });
 }
 

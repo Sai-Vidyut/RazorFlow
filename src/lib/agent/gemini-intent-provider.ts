@@ -22,6 +22,11 @@ Only extract information supported by the buyer's request.
 
 If information is absent or uncertain, leave the relevant field empty or null according to the schema.
 
+Treat budget caps, category, and product exclusions as hard constraints when the buyer states them.
+Map natural-language exclusions (except, not, without, anything but, other than, no, don't show) into the exclusions array using the product phrase the buyer named.
+
+Distinguish hard constraints (category, budget, exclusions) from soft preferences (good, comfortable, premium, for travel) which belong in preferences or useCase.
+
 The merchant catalog is the source of truth for products.
 
 The deterministic policy engine is the source of truth for financial authorization.

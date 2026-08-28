@@ -551,7 +551,7 @@ export function DeskApp() {
                   </motion.div>
                 ) : (
                   <motion.div
-                    key={`agent-result-${result?.primary?.sku ?? "none"}-${phase}`}
+                    key={`agent-result-${result?.status ?? "none"}-${result?.intent.query ?? "idle"}-${phase}`}
                     className="flex flex-1 flex-col"
                     initial={reduce ? false : { opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -561,13 +561,14 @@ export function DeskApp() {
                     {!result || phase === "idle" ? (
                       <EmptyDecision />
                     ) : result.status === "empty" || phase === "empty" ? (
-                      <div className="rf-desk-empty-state">
+                      <div className="rf-desk-empty-state" data-testid="discovery-empty">
                         <div className="rf-desk-empty-state-icon">
                           <Warning className="size-5" aria-hidden />
                         </div>
                         <p className="text-base font-medium text-ink">No catalog match</p>
                         <p className="max-w-[36ch] text-sm text-muted">
-                          No product fits this request. Widen the budget or adjust the category.
+                          {result.explanations[0]?.reason ??
+                            "No product fits this request. Widen the budget or adjust the category."}
                         </p>
                       </div>
                     ) : (
@@ -629,17 +630,25 @@ export function DeskApp() {
 
                 <div className="mt-3 border-t border-line/60 pt-3" data-testid="policy-result">
                   <p className="flex items-start gap-2 text-sm">
-                    {result?.status === "blocked" ? (
+                    {result?.status === "blocked" || result?.status === "empty" ? (
                       <Warning className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden="true" />
                     ) : (
                       <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
                     )}
-                    <span className={result?.status === "blocked" ? "text-danger" : "text-success"}>
+                    <span
+                      className={
+                        result?.status === "blocked" || result?.status === "empty"
+                          ? "text-danger"
+                          : "text-success"
+                      }
+                    >
                       {result?.status === "blocked"
                         ? result.blockedReason
-                        : result?.status === "ready"
-                          ? "Allowed. All guardrails satisfied."
-                          : "Policy has not run yet."}
+                        : result?.status === "empty"
+                          ? (result.explanations[0]?.reason ?? "No matching products in catalog.")
+                          : result?.status === "ready"
+                            ? "Allowed. All guardrails satisfied."
+                            : "Policy has not run yet."}
                     </span>
                   </p>
                 </div>

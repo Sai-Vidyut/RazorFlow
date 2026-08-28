@@ -1,4 +1,5 @@
 import { discoverProductsWithMeta, isMultiProductDiscovery } from "./discover-catalog";
+import type { CatalogCategory } from "./category-match";
 import { findProduct, marginPct } from "./parse-intent";
 import { rankProducts, recommendationReason } from "./match-catalog";
 import type { StructuredIntent } from "./structured-intent";
@@ -49,7 +50,50 @@ function insufficientInventoryResult(
   };
 }
 
-function emptyResult(intent: StructuredIntent, maxBudgetInr: number | null): AgentResult {
+function formatExclusionSuffix(intent: StructuredIntent, catalog: Product[]): string {
+  const resolved = intent.exclusions.filter((entry) => entry.resolvedSku);
+  if (resolved.length === 0) return "";
+
+  const names = resolved.map((entry) => {
+    const product = catalog.find((item) => item.sku === entry.resolvedSku);
+    return product?.name ?? entry.reference;
+  });
+
+  if (names.length === 1) return ` after excluding ${names[0]}`;
+  if (names.length === 2) return ` after excluding ${names[0]} and ${names[1]}`;
+  return ` after excluding ${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+function emptyDiscoveryMessage(
+  intent: StructuredIntent,
+  maxBudgetInr: number | null,
+  category: CatalogCategory | null,
+  catalog: Product[],
+): string {
+  const exclusionSuffix = formatExclusionSuffix(intent, catalog);
+  const categoryLabel = category ?? intent.category;
+  if (maxBudgetInr != null && categoryLabel) {
+    return `No ${categoryLabel} available under ₹${maxBudgetInr.toLocaleString("en-IN")}${exclusionSuffix}.`;
+  }
+  if (maxBudgetInr != null) {
+    return `No products available under ₹${maxBudgetInr.toLocaleString("en-IN")}${exclusionSuffix}.`;
+  }
+  if (categoryLabel && exclusionSuffix) {
+    return `No ${categoryLabel} matched this request${exclusionSuffix}.`;
+  }
+  if (categoryLabel) {
+    return `No ${categoryLabel} matched this request in the catalog.`;
+  }
+  return "Nothing in the merchant catalog fits the stated constraints.";
+}
+
+function emptyResult(
+  intent: StructuredIntent,
+  maxBudgetInr: number | null,
+  category: CatalogCategory | null,
+  catalog: Product[],
+): AgentResult {
+  const reason = emptyDiscoveryMessage(intent, maxBudgetInr, category, catalog);
   return {
     status: "empty",
     intent,
@@ -64,8 +108,8 @@ function emptyResult(intent: StructuredIntent, maxBudgetInr: number | null): Age
     explanations: [
       {
         decision: "No catalog match",
-        reason: "Nothing in the merchant catalog fits the stated constraints.",
-        evidence: maxBudgetInr != null ? `Budget ₹${maxBudgetInr}` : "No matching products",
+        reason,
+        evidence: maxBudgetInr != null ? `Budget ₹${maxBudgetInr.toLocaleString("en-IN")}` : "No matching products",
       },
     ],
     policies: [],
@@ -74,17 +118,18 @@ function emptyResult(intent: StructuredIntent, maxBudgetInr: number | null): Age
 }
 
 export function runAgentWithParsed(
-  intent: StructuredIntent,
+  rawIntent: StructuredIntent,
   policies: MerchantPolicies,
   catalog: Product[],
 ): AgentResult {
+  const discovery = discoverProductsWithMeta(rawIntent, catalog);
+  const intent = discovery.intent;
   const quantity = intent.quantity;
   const maxBudgetInr = intentMaxBudgetInr(intent);
   const discountAsk = intent.constraints.maxDiscountPct;
   const explanations: AgentExplanation[] = [];
   const policiesOut: AgentResult["policies"] = [];
 
-  const discovery = discoverProductsWithMeta(intent, catalog);
   const primary = discovery.products[0] ?? null;
   const results = discovery.products;
   const discoverySummary = {
@@ -97,7 +142,7 @@ export function runAgentWithParsed(
   };
 
   if (!primary) {
-    return emptyResult(intent, maxBudgetInr);
+    return emptyResult(intent, maxBudgetInr, discovery.category, catalog);
   }
 
   if (primary.inventory < quantity) {

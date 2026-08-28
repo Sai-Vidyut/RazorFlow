@@ -7,7 +7,7 @@ export type {
   PolicyVerdict,
   Product,
 } from "./types";
-export type { StructuredIntent } from "./structured-intent";
+export type { StructuredIntent, IntentExclusion } from "./structured-intent";
 export type { IntentProvider, IntentExtractionResult } from "./intent-types";
 export {
   createStructuredIntent,
@@ -24,8 +24,11 @@ export {
 export { extractIntent, parseIntent, setIntentProviderForTests } from "./intent";
 export { GeminiIntentProvider, createGeminiIntentProvider } from "./gemini-intent-provider";
 export { runAgentWithParsed } from "./run-agent";
-export { discoverProducts, discoverProductsWithMeta, isMultiProductDiscovery, DEFAULT_MULTI_RESULT_COUNT, MAX_DISCOVERY_RESULTS } from "./discover-catalog";
+export { parseBudgetInr } from "./budget-parse";
+export { parseExclusionReferences, stripExclusionClauses } from "./exclusion-parse";
+export { discoverProducts, discoverProductsWithMeta, isMultiProductDiscovery, resolveEffectiveIntent, prepareIntentForDiscovery, DEFAULT_MULTI_RESULT_COUNT, MAX_DISCOVERY_RESULTS } from "./discover-catalog";
 export { normalizeIntentCategory, productMatchesCategory, inferCategoryFromQuery } from "./category-match";
 export { rankProducts, scoreProduct, recommendationReason } from "./match-catalog";
 export { buildDemoPrompts, type DemoPrompt } from "./demo-prompts";
+export { findExactProductMatch, reconcileIntentForExactProduct, queryForExactProductMatch, resolveExclusionReference, resolveIntentExclusions, excludedSkusFromIntent } from "./resolve-exact-product";
 export { findProduct, marginPct } from "./parse-intent";

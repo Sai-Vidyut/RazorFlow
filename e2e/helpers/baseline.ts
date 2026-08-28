@@ -184,7 +184,7 @@ export async function runDeskAgentWithIntent(
   await page.getByTestId("run-agent").click();
   await expect(page.getByTestId("product-name")).toBeVisible({ timeout: 15_000 });
   await page.getByTestId("add-to-cart-halo-anc").click();
-  await expect(page.getByTestId("cart-badge")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByTestId("cart-summary")).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId("authorize")).toBeEnabled({ timeout: 10_000 });
 }
 

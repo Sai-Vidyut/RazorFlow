@@ -98,8 +98,10 @@ export function scoreProduct(product: Product, intent: StructuredIntent, catalog
 
   const pricePaise = product.pricePaise;
   if (intent.constraints.maxPricePaise != null) {
+    if (pricePaise > intent.constraints.maxPricePaise) {
+      return -100;
+    }
     if (pricePaise <= intent.constraints.maxPricePaise) score += 4;
-    else score -= 12;
   }
 
   if (intent.constraints.minPricePaise != null && pricePaise >= intent.constraints.minPricePaise) {
