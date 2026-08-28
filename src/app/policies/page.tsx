@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   title: "Policies",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function PoliciesPage() {
   const merchant = await resolveDemoMerchant();
 
