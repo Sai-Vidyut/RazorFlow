@@ -4,7 +4,7 @@ import { expect, type APIRequestContext, type Page } from "@playwright/test";
 export const SEED_POLICIES = {
   maxDiscountPct: 12,
   minMarginPct: 18,
-  maxOrderInr: 25000,
+  maxOrderInr: 50000,
   minAttachRatePct: 35,
   allowCrossSell: true,
   requireBudgetFit: true,

@@ -60,7 +60,7 @@ describe("Razorpay payments", () => {
     await updatePersistedPolicies({
       discountCeilingPct: 12,
       marginFloorPct: 18,
-      orderCapPaise: 2500000,
+      orderCapPaise: 5000000,
       minAttachRatePct: 35,
       allowEvidenceCrossSell: true,
       requireBudgetFit: true,
