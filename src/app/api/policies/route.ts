@@ -13,11 +13,16 @@ function withPolicyExplanations(values: ReturnType<typeof responseToFormValues>)
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    await requireStaffSession(request);
+
     const policies = await getPersistedPolicies();
     return NextResponse.json(withPolicyExplanations(responseToFormValues(policies)));
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("GET /api/policies failed:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to load policies" },

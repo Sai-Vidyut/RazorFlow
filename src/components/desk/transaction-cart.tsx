@@ -7,11 +7,18 @@ import type { CartState } from "@/hooks/use-cart";
 type TransactionCartProps = {
   cart: CartState;
   loading: boolean;
+  readOnly?: boolean;
   onUpdateQuantity: (lineId: string, quantity: number) => void | Promise<boolean>;
   onRemoveLine: (lineId: string) => void | Promise<boolean>;
 };
 
-export function TransactionCart({ cart, loading, onUpdateQuantity, onRemoveLine }: TransactionCartProps) {
+export function TransactionCart({
+  cart,
+  loading,
+  readOnly = false,
+  onUpdateQuantity,
+  onRemoveLine,
+}: TransactionCartProps) {
   const isEmpty = cart.lines.length === 0;
 
   return (
@@ -50,6 +57,14 @@ export function TransactionCart({ cart, loading, onUpdateQuantity, onRemoveLine 
                   </p>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                  {readOnly ? (
+                    <span
+                      className="text-sm text-muted tabular"
+                      data-testid={`cart-qty-${line.sku}`}
+                    >
+                      Qty {line.quantity}
+                    </span>
+                  ) : (
                   <div className="inline-flex items-center rounded-[8px] border border-line/80 bg-canvas">
                     <button
                       type="button"
@@ -77,6 +92,8 @@ export function TransactionCart({ cart, loading, onUpdateQuantity, onRemoveLine 
                       <Plus className="size-4" aria-hidden />
                     </button>
                   </div>
+                  )}
+                  {!readOnly ? (
                   <button
                     type="button"
                     data-testid={`remove-${line.sku}`}
@@ -86,6 +103,7 @@ export function TransactionCart({ cart, loading, onUpdateQuantity, onRemoveLine 
                     <Trash className="size-4" aria-hidden />
                     Remove
                   </button>
+                  ) : null}
                 </div>
               </li>
             ))}

@@ -5,9 +5,11 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Gauge, ShieldCheck, Storefront } from "@phosphor-icons/react";
 import { AccountTopBarActions } from "@/components/auth/account-top-bar-actions";
+import { useAuthSession } from "@/components/auth/use-auth-session";
 import { Mark } from "@/components/mark";
 import { PUBLIC_NAV } from "@/components/shell/nav-config";
 import { useScrollCollapse } from "@/components/shell/use-scroll-collapse";
+import { isStaffOrAdmin } from "@/lib/auth/capability";
 
 type AppTopBarProps = {
   variant: "public" | "desk" | "admin";
@@ -33,6 +35,9 @@ export function AppTopBar({
 }: AppTopBarProps) {
   const collapsed = useScrollCollapse(variant === "public");
   const pathname = usePathname();
+  const auth = useAuthSession();
+  const showStaffPoliciesLink =
+    !auth.loading && auth.authenticated && isStaffOrAdmin(auth.capability);
 
   return (
     <header className="rf-app-topbar" data-collapsed={collapsed ? "true" : "false"}>
@@ -90,13 +95,15 @@ export function AppTopBar({
               <div className="flex items-center gap-2">
                 <AccountTopBarActions sessionId={sessionId} />
                 {variant === "desk" ? (
-                  <Link
-                    href="/policies"
-                    className="rf-workspace-switch rf-motion-colors inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-line/70 bg-surface px-3 text-sm text-ink-soft hover:text-ink"
-                  >
-                    <ShieldCheck className="size-4" aria-hidden />
-                    <span className="hidden sm:inline">Policies</span>
-                  </Link>
+                  showStaffPoliciesLink ? (
+                    <Link
+                      href="/admin/policies"
+                      className="rf-workspace-switch rf-motion-colors inline-flex min-h-9 items-center gap-1.5 rounded-[8px] border border-line/70 bg-surface px-3 text-sm text-ink-soft hover:text-ink"
+                    >
+                      <ShieldCheck className="size-4" aria-hidden />
+                      <span className="hidden sm:inline">Policies</span>
+                    </Link>
+                  ) : null
                 ) : (
                   <>
                     <Link

@@ -2,6 +2,7 @@ import type { BuyerCapability } from "@/lib/services/buyer-identity";
 import { buildDemoPrompts, pickPrimaryCatalogProduct, type DemoPrompt } from "@/lib/agent/demo-prompts";
 import { buildPolicyCopy, type PolicyCopyItem } from "@/lib/policy/copy";
 import { getActiveCatalog } from "@/lib/services/catalog";
+import { getDeskActiveSessionState, type DeskActiveSessionState } from "@/lib/services/desk-session-state";
 import { getMerchantPoliciesForAgent } from "@/lib/services/policies";
 import { resolveDemoMerchant } from "@/lib/services/merchant";
 
@@ -18,6 +19,7 @@ export type DeskContext = {
     emailVerified: boolean;
     capability: BuyerCapability;
   };
+  activeSession: DeskActiveSessionState | null;
 };
 
 export async function getDeskContext(options?: {
@@ -35,6 +37,8 @@ export async function getDeskContext(options?: {
   const primary = pickPrimaryCatalogProduct(catalog);
   const sampleBudget = primary ? Math.ceil(primary.price * 1.1) : 5000;
   const categoryHint = primary?.category ?? "products";
+  const activeSession =
+    options?.sessionId != null ? await getDeskActiveSessionState(options.sessionId) : null;
 
   return {
     merchant: {
@@ -49,6 +53,7 @@ export async function getDeskContext(options?: {
       emailVerified: options?.emailVerified ?? false,
       capability: options?.capability ?? "anonymous",
     },
+    activeSession,
   };
 }
 

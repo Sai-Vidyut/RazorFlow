@@ -5,6 +5,7 @@ import { getRazorpayKeySecret } from "@/lib/razorpay/client";
 import { verifyPaymentSignature, verifyWebhookSignature } from "@/lib/razorpay/verify";
 import { countPriorFailedAttempts } from "@/lib/services/recovery";
 import { getLedgerData } from "@/lib/services/ledger";
+import { buildCapturedPaymentView } from "@/lib/services/desk-session-state";
 
 export class PaymentError extends Error {
   constructor(
@@ -34,7 +35,10 @@ export async function verifyAndCapturePayment(input: VerifyInput) {
     include: {
       payments: { orderBy: { createdAt: "desc" }, take: 1 },
       session: true,
-      decision: true,
+      decision: { include: { primaryProduct: true } },
+      lineItems: {
+        include: { product: true },
+      },
     },
   });
 
@@ -52,7 +56,7 @@ export async function verifyAndCapturePayment(input: VerifyInput) {
   }
 
   if (payment.status === "CAPTURED" && payment.razorpaySignatureVerified) {
-    return { orderId: order.id, paymentId: payment.id, status: "CAPTURED" as const, alreadyCaptured: true };
+    return buildVerifyCaptureResponse(order, payment, true);
   }
 
   await recordAuditEvent(order.sessionId, "PAYMENT_VERIFICATION_ATTEMPTED", "system", {
@@ -128,7 +132,56 @@ export async function verifyAndCapturePayment(input: VerifyInput) {
     });
   }
 
-  return { orderId: order.id, paymentId: payment.id, status: "CAPTURED" as const, alreadyCaptured: false };
+  return buildVerifyCaptureResponse(
+    order,
+    {
+      id: payment.id,
+      razorpayPaymentId: input.razorpayPaymentId,
+      capturedAt,
+    },
+    false,
+  );
+}
+
+function buildVerifyCaptureResponse(
+  order: {
+    id: string;
+    amountPaise: number;
+    lineItems: Array<{ product: { name: string } }>;
+    decision: { primaryProduct: { name: string } | null } | null;
+  },
+  payment: {
+    id: string;
+    razorpayPaymentId: string | null;
+    capturedAt: Date | null;
+  },
+  alreadyCaptured: boolean,
+) {
+  const productNames =
+    order.lineItems.length > 0
+      ? order.lineItems.map((line) => line.product.name)
+      : order.decision?.primaryProduct
+        ? [order.decision.primaryProduct.name]
+        : [];
+
+  if (productNames.length === 0 || !payment.razorpayPaymentId || !payment.capturedAt) {
+    throw new PaymentError("Captured payment details are incomplete", 500);
+  }
+
+  return {
+    orderId: order.id,
+    paymentId: payment.id,
+    status: "CAPTURED" as const,
+    alreadyCaptured,
+    capturedPayment: buildCapturedPaymentView({
+      orderId: order.id,
+      paymentId: payment.id,
+      razorpayPaymentId: payment.razorpayPaymentId,
+      amountPaise: order.amountPaise,
+      capturedAt: payment.capturedAt.toISOString(),
+      productNames,
+    }),
+  };
 }
 
 export async function recordPaymentFailure(orderId: string, reason: string) {

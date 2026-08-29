@@ -3,7 +3,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import {
-  CheckCircle,
   Clock,
   Lock,
   MagnifyingGlass,
@@ -21,6 +20,7 @@ import {
   ProductRecommendationBrowser,
 } from "@/components/desk/product-recommendation-browser";
 import { AgentProcessingView } from "@/components/desk/agent-processing-view";
+import { CompletedTransaction, PaymentNotCompleted } from "@/components/desk/completed-transaction";
 import { DeskStageRail } from "@/components/desk/desk-stage-rail";
 import { useAgentProcessingPresentation } from "@/components/desk/use-agent-processing";
 import type { Phase } from "@/components/desk/desk-types";
@@ -33,6 +33,7 @@ import type { DemoPrompt } from "@/lib/agent/demo-prompts";
 import { TransactionCart } from "@/components/desk/transaction-cart";
 import { useCart } from "@/hooks/use-cart";
 import { openRazorpayCheckout } from "@/lib/razorpay/checkout";
+import type { CapturedPaymentView } from "@/lib/desk/payment-display";
 
 type AgentApiResponse = {
   sessionId: string;
@@ -90,6 +91,8 @@ export function DeskApp() {
   const [accountModalMode, setAccountModalMode] = useState<AccountAuthMode>("login");
   const [resumeAuthorizeAfterAuth, setResumeAuthorizeAfterAuth] = useState(false);
   const [pendingForceFail, setPendingForceFail] = useState(false);
+  const [capturedPayment, setCapturedPayment] = useState<CapturedPaymentView | null>(null);
+  const [failureOverlayOpen, setFailureOverlayOpen] = useState(false);
 
   const { cart, loading: cartLoading, refresh: refreshCart, updateQuantity, removeLine } = useCart(sessionId);
 
@@ -125,11 +128,28 @@ export function DeskApp() {
           merchant: { name: string };
           demoPrompts: DemoPrompt[];
           intentPlaceholder: string;
+          activeSession?: {
+            sessionId: string;
+            decisionId: string;
+            orderId: string;
+            intentQuery: string;
+            agent: AgentApiResponse;
+            capturedPayment: CapturedPaymentView;
+          } | null;
         };
         setMerchantName(payload.merchant.name);
         setDemoPrompts(payload.demoPrompts);
         setIntentPlaceholder(payload.intentPlaceholder);
-        if (payload.demoPrompts[0]?.text) {
+        if (payload.activeSession) {
+          const active = payload.activeSession;
+          setSessionId(active.sessionId);
+          setDecisionId(active.decisionId);
+          setOrderId(active.orderId);
+          setIntent(active.intentQuery);
+          setResult(mapApiResponseToAgentResult(active.agent));
+          setCapturedPayment(active.capturedPayment);
+          setPhase("captured");
+        } else if (payload.demoPrompts[0]?.text) {
           setIntent(payload.demoPrompts[0].text);
         }
       } finally {
@@ -143,6 +163,8 @@ export function DeskApp() {
     event.preventDefault();
     setError(null);
     setResult(null);
+    setCapturedPayment(null);
+    setFailureOverlayOpen(false);
     setSessionId(null);
     setDecisionId(null);
     setOrderId(null);
@@ -287,7 +309,7 @@ export function DeskApp() {
   }
 
   async function authorize(forceFail = false, skipVerificationPrompt = false) {
-    if (!result || result.status !== "ready" || cart.itemCount === 0) return;
+    if (!result || result.status !== "ready" || cart.itemCount === 0 || phase === "captured") return;
     setPhase("processing");
     setError(null);
 
@@ -310,6 +332,7 @@ export function DeskApp() {
         }
         setPhase("failed");
         setError("Razorpay declined the payment. The basket is unchanged. Retry or pick another method.");
+        setFailureOverlayOpen(true);
         const evaluation = await loadRecoveryEvaluation(checkout.decisionId);
         setRecovery(evaluation);
         return;
@@ -336,15 +359,23 @@ export function DeskApp() {
                 razorpay_signature: paymentResponse.razorpay_signature,
               }),
             });
+            const payload = (await verifyRes.json()) as {
+              error?: string;
+              capturedPayment?: CapturedPaymentView;
+            };
             if (!verifyRes.ok) {
-              const payload = (await verifyRes.json()) as { error?: string };
               throw new Error(payload.error ?? "Payment verification failed.");
+            }
+            if (payload.capturedPayment) {
+              setCapturedPayment(payload.capturedPayment);
             }
             setPhase("captured");
             setRecovery(null);
+            setError(null);
           } catch (cause) {
             setPhase("failed");
             setError(cause instanceof Error ? cause.message : "Payment verification failed.");
+            setFailureOverlayOpen(true);
             const evaluation = await loadRecoveryEvaluation(checkout.decisionId);
             setRecovery(evaluation);
           }
@@ -360,8 +391,9 @@ export function DeskApp() {
                   body: JSON.stringify({ orderId: checkout.orderId }),
                 });
               } finally {
-                setPhase("ready");
+                setPhase("failed");
                 setRecovery(null);
+                setFailureOverlayOpen(false);
                 setError("Checkout closed before payment completed.");
               }
             })();
@@ -387,6 +419,7 @@ export function DeskApp() {
             setError(reason);
           }
           setPhase("failed");
+          setFailureOverlayOpen(true);
           const evaluation = await loadRecoveryEvaluation(checkout.decisionId);
           setRecovery(evaluation);
         })();
@@ -401,6 +434,7 @@ export function DeskApp() {
         return;
       }
       setPhase("failed");
+      setFailureOverlayOpen(true);
       setError(cause instanceof Error ? cause.message : "Payment failed. Retry the capture.");
       const evaluation = await loadRecoveryEvaluation();
       setRecovery(evaluation);
@@ -418,13 +452,41 @@ export function DeskApp() {
     }
   }
 
+  async function startNewSale() {
+    await fetch("/api/desk/reset", {
+      method: "POST",
+      credentials: "include",
+    });
+    setSessionId(null);
+    setDecisionId(null);
+    setOrderId(null);
+    setResult(null);
+    setCapturedPayment(null);
+    setFailureOverlayOpen(false);
+    setRecovery(null);
+    setError(null);
+    setPhase("idle");
+    agentProcessing.cancel();
+    setIntent(demoPrompts[0]?.text ?? "");
+  }
+
+  function tryPaymentAgain() {
+    setRecovery(null);
+    setError(null);
+    setFailureOverlayOpen(false);
+    setPhase("ready");
+  }
+
+  const transactionLocked = phase === "captured" || phase === "processing";
+
   return (
     <DeskShell
       merchantName={merchantName}
       sessionId={sessionId}
     >
-      <DeskStageRail phase={phase} hasResult={result != null} />
-      <div className="rf-desk-workspace">
+      <div className="rf-desk-layout">
+        <DeskStageRail phase={phase} hasResult={result != null} />
+        <div className="rf-desk-workspace">
         <div className="rf-desk-stage">
           <Panel title="Buyer intent" step="01" fill className="min-w-0">
             <form id="desk-intent-form" className="flex flex-1 flex-col gap-4" onSubmit={onSubmit}>
@@ -656,6 +718,7 @@ export function DeskApp() {
                 <TransactionCart
                   cart={cart}
                   loading={cartLoading}
+                  readOnly={phase === "captured"}
                   onUpdateQuantity={updateQuantity}
                   onRemoveLine={removeLine}
                 />
@@ -678,10 +741,22 @@ export function DeskApp() {
                 ) : null}
 
                 <div className="rf-desk-transact-actions mt-auto pt-4">
+                  {phase === "captured" && capturedPayment ? (
+                    <CompletedTransaction
+                      payment={capturedPayment}
+                      onStartNewSale={() => void startNewSale()}
+                    />
+                  ) : phase === "failed" ? (
+                    <PaymentNotCompleted
+                      message={error ?? "Payment not completed."}
+                      onTryAgain={tryPaymentAgain}
+                    />
+                  ) : (
+                    <>
                   <button
                     type="button"
                     data-testid="authorize"
-                    disabled={result?.status !== "ready" || cart.itemCount === 0 || busy || phase === "captured"}
+                    disabled={result?.status !== "ready" || cart.itemCount === 0 || busy || transactionLocked}
                     onClick={() => authorize(false)}
                     className="rf-btn rf-motion-colors flex min-h-11 w-full items-center justify-center rounded-[8px] bg-accent text-sm font-medium text-white hover:bg-accent-hover enabled:active:scale-[0.98] disabled:opacity-50"
                   >
@@ -698,7 +773,7 @@ export function DeskApp() {
                   <button
                     type="button"
                     data-testid="simulate-decline"
-                    disabled={result?.status !== "ready" || cart.itemCount === 0 || busy}
+                    disabled={result?.status !== "ready" || cart.itemCount === 0 || busy || transactionLocked}
                     onClick={() => authorize(true)}
                     className="mt-2 flex min-h-11 w-full items-center justify-center rounded-[8px] border border-line text-sm text-ink-soft hover:text-ink disabled:opacity-50"
                   >
@@ -708,13 +783,15 @@ export function DeskApp() {
                     <Lock className="size-3.5 shrink-0" aria-hidden="true" />
                     Razorpay Test Mode checkout. Capture is confirmed only after server verification.
                   </p>
+                    </>
+                  )}
                 </div>
               </div>
             </Panel>
         </div>
 
         <AnimatePresence>
-          {(phase === "captured" || phase === "failed") && result ? (
+          {phase === "failed" && failureOverlayOpen && result ? (
             <PaymentOverlay
               phase={phase}
               checkoutTotal={cart.subtotal}
@@ -724,16 +801,18 @@ export function DeskApp() {
               onRetry={() => authorize(false)}
               onReviewBasket={() => {
                 setRecovery(null);
+                setFailureOverlayOpen(false);
                 setPhase("ready");
                 setError("Basket needs a fresh agent check before payment can continue.");
               }}
               onClose={() => {
                 setRecovery(null);
-                setPhase(result.status === "ready" ? "ready" : phase === "failed" ? "ready" : "captured");
+                setFailureOverlayOpen(false);
               }}
             />
           ) : null}
         </AnimatePresence>
+      </div>
       </div>
       <AccountAuthModal
         open={accountModalOpen}
@@ -886,16 +965,14 @@ function DecisionBody({
 }
 
 function PaymentOverlay({
-  phase,
   checkoutTotal,
-  result,
   error,
   recovery,
   onRetry,
   onReviewBasket,
   onClose,
 }: {
-  phase: "captured" | "failed";
+  phase: "failed";
   checkoutTotal: number;
   result: AgentResult;
   error: string | null;
@@ -926,93 +1003,68 @@ function PaymentOverlay({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start gap-3">
-          {phase === "captured" ? (
-            <CheckCircle className="size-6 shrink-0 text-accent" weight="fill" aria-hidden="true" />
-          ) : (
-            <XCircle className="size-6 shrink-0 text-danger" weight="fill" aria-hidden="true" />
-          )}
+          <XCircle className="size-6 shrink-0 text-danger" weight="fill" aria-hidden="true" />
           <div className="min-w-0 flex-1">
             <h2
               className="text-lg font-semibold tracking-tight"
-              data-testid={phase === "captured" ? "payment-success" : "payment-failed"}
+              data-testid="payment-failed"
             >
-              {phase === "captured" ? "Payment captured" : "Payment failed"}
+              Payment failed
             </h2>
             <p className="mt-3 text-3xl font-semibold tracking-tight tabular">
               <Money value={checkoutTotal} />
             </p>
-            {phase === "captured" ? (
+            <p className="mt-3 text-sm text-ink-soft" role="alert">
+              {failureMessage}
+            </p>
+            {recoveryStatus === "retryable" ? (
               <>
-                <p className="mt-2 text-sm text-muted">Verified on the server via Razorpay.</p>
-                <p className="mt-3">
-                  <StatusChip label="Settling via Razorpay" tone="accent" />
+                <p className="mt-2 text-sm text-muted">Your basket is unchanged.</p>
+                <div className="mt-5 flex flex-col gap-2">
+                  <Button type="button" data-testid="retry-payment" onClick={onRetry} className="w-full">
+                    Retry payment
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={onClose} className="w-full">
+                    Close
+                  </Button>
+                </div>
+              </>
+            ) : recoveryStatus === "re_evaluate" ? (
+              <>
+                <p className="mt-2 text-sm text-muted">
+                  {recovery?.changes.length
+                    ? recovery.changes.join(". ")
+                    : "One item changed availability, so we need to re-check your basket before retrying."}
                 </p>
+                <div className="mt-5 flex flex-col gap-2">
+                  <Button
+                    type="button"
+                    data-testid="review-basket"
+                    onClick={onReviewBasket}
+                    className="w-full"
+                  >
+                    Review basket
+                  </Button>
+                  <Button type="button" variant="secondary" onClick={onClose} className="w-full">
+                    Close
+                  </Button>
+                </div>
               </>
             ) : (
               <>
-                <p className="mt-3 text-sm text-ink-soft" role="alert">
-                  {failureMessage}
+                <p className="mt-2 text-sm text-muted">
+                  {recovery?.reason ??
+                    "This basket no longer satisfies the merchant pricing policy."}
                 </p>
-                {recoveryStatus === "retryable" ? (
-                  <>
-                    <p className="mt-2 text-sm text-muted">Your basket is unchanged.</p>
-                    <div className="mt-5 flex flex-col gap-2">
-                      <Button type="button" data-testid="retry-payment" onClick={onRetry} className="w-full">
-                        Retry payment
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={onClose} className="w-full">
-                        Close
-                      </Button>
-                    </div>
-                  </>
-                ) : recoveryStatus === "re_evaluate" ? (
-                  <>
-                    <p className="mt-2 text-sm text-muted">
-                      {recovery?.changes.length
-                        ? recovery.changes.join(". ")
-                        : "One item changed availability, so we need to re-check your basket before retrying."}
-                    </p>
-                    <div className="mt-5 flex flex-col gap-2">
-                      <Button
-                        type="button"
-                        data-testid="review-basket"
-                        onClick={onReviewBasket}
-                        className="w-full"
-                      >
-                        Review basket
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={onClose} className="w-full">
-                        Close
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p className="mt-2 text-sm text-muted">
-                      {recovery?.reason ??
-                        "This basket no longer satisfies the merchant pricing policy."}
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-danger">Recovery unavailable</p>
-                    <div className="mt-5">
-                      <Button type="button" variant="secondary" onClick={onClose} className="w-full">
-                        Close
-                      </Button>
-                    </div>
-                  </>
-                )}
+                <p className="mt-2 text-sm font-medium text-danger">Recovery unavailable</p>
+                <div className="mt-5">
+                  <Button type="button" variant="secondary" onClick={onClose} className="w-full">
+                    Close
+                  </Button>
+                </div>
               </>
             )}
           </div>
-          {phase === "captured" ? (
-            <button
-              type="button"
-              onClick={onClose}
-              className="min-h-9 shrink-0 rounded-[8px] px-2 text-sm text-muted hover:bg-canvas-2 hover:text-ink"
-              aria-label="Close payment status"
-            >
-              Close
-            </button>
-          ) : null}
         </div>
       </section>
     </motion.div>

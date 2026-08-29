@@ -69,7 +69,7 @@ export function DeskStageRail({ phase, hasResult }: DeskStageRailProps) {
         })}
       </div>
 
-      <div className="rf-desk-stages hidden lg:grid" aria-label="Commerce workflow stages">
+      <div className="rf-desk-stages hidden lg:contents" aria-label="Commerce workflow stages">
         {DESKTOP_STAGES.map((stage, index) => {
           const step = index + 1;
           const isActive = desktopCurrent === step;

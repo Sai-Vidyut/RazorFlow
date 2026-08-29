@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { isRazorpayConfigured } from "./helpers/env";
-import { resetPoliciesToSeed } from "./helpers/db-reset";
 import {
   authenticateStaff,
   ensureVerifiedBuyerForCheckout,
@@ -24,7 +23,7 @@ test.describe("RazorFlow journeys", () => {
     if (!isMobile) {
       await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Ledger" })).toHaveCount(0);
       await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Desk" })).toBeVisible();
-      await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Policies" })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Policies" })).toHaveCount(0);
       await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Admin" })).toHaveCount(0);
     }
     await expect(page.getByRole("banner").getByRole("button", { name: "Log in" })).toBeVisible();
@@ -82,20 +81,6 @@ test.describe("RazorFlow journeys", () => {
     await expect(page.getByTestId("authorize")).toHaveText(/Collecting payment|Authorize/i, {
       timeout: 15_000,
     });
-  });
-
-  test("policies page remains readable", async ({ page }) => {
-    const isMobile = test.info().project.use.isMobile;
-    await resetPoliciesToSeed();
-    await page.goto("/policies");
-    await expect(page.getByRole("heading", { name: "Merchant guardrails" })).toBeVisible();
-    await expect(page.getByLabel("Discount ceiling")).toHaveValue("12");
-    if (!isMobile) {
-      await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Desk" })).toBeVisible();
-      await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Policies" })).toBeVisible();
-      await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Ledger" })).toHaveCount(0);
-    }
-    await expect(page.getByRole("banner").getByRole("button", { name: "Log in" })).toBeVisible();
   });
 
   test.describe("admin portal (staff)", () => {

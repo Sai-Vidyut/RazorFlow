@@ -27,7 +27,6 @@ export type NavGroup = {
 
 export const PUBLIC_NAV: NavItem[] = [
   { href: "/desk", label: "Desk", icon: Storefront, exact: true },
-  { href: "/policies", label: "Policies", icon: ShieldCheck, exact: true },
   { href: "/admin", label: "Admin", icon: Gauge, exact: true },
 ];
 

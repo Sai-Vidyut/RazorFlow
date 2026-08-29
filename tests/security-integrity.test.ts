@@ -23,6 +23,7 @@ import {
   merchantAuthHeaders,
   unauthorizedHeaders,
 } from "./helpers/auth";
+import { createStaffAuthContext } from "./helpers/staff-auth";
 
 const prisma = new PrismaClient();
 const TEST_WEBHOOK_SECRET = "test_webhook_secret_phase3d";
@@ -124,8 +125,10 @@ describe("Phase 3D security and integrity", () => {
     expect(response.status).toBe(401);
   });
 
-  it("allows public policy read while merchant routes stay protected", async () => {
-    const policies = await policiesRoute();
+  it("rejects unauthenticated policy reads while merchant routes stay protected", async () => {
+    const policies = await policiesRoute(
+      new Request("http://localhost/api/policies", { headers: unauthorizedHeaders() }),
+    );
     const ledger = await ledgerRoute(
       new Request("http://localhost/api/ledger", { headers: unauthorizedHeaders() }),
     );
@@ -133,13 +136,17 @@ describe("Phase 3D security and integrity", () => {
       new Request("http://localhost/api/catalog", { headers: unauthorizedHeaders() }),
     );
 
-    expect(policies.status).toBe(200);
+    expect(policies.status).toBe(401);
     expect(ledger.status).toBe(401);
     expect(catalog.status).toBe(401);
   });
 
   it("rejects policy updates without staff authorization", async () => {
-    const current = await policiesRoute();
+    const staff = await createStaffAuthContext();
+    const current = await policiesRoute(
+      new Request("http://localhost/api/policies", { headers: staff.headers }),
+    );
+    expect(current.status).toBe(200);
     const payload = (await current.json()) as {
       maxDiscountPct: number;
       minMarginPct: number;

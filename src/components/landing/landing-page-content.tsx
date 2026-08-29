@@ -43,9 +43,9 @@ export function LandingPageContent({
               <Link href="/desk" className="rf-btn rf-btn-primary rf-motion-colors inline-flex min-h-11 items-center rounded-[8px] px-5 text-sm font-medium text-white">
                 Open the desk
               </Link>
-              <Link href="/policies" className="rf-motion-colors text-sm font-medium text-ink-soft hover:text-ink">
+              <a href="#guardrails-heading" className="rf-motion-colors text-sm font-medium text-ink-soft hover:text-ink">
                 View guardrails
-              </Link>
+              </a>
             </div>
           </div>
           <div className="rf-vp-hero-preview">

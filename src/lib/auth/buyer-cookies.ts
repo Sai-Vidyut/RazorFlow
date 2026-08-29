@@ -14,3 +14,11 @@ export function buildBuyerSessionSetCookie(sessionId: string): string {
 export function appendBuyerSessionCookie(response: NextResponse, sessionId: string): void {
   response.headers.append("Set-Cookie", buildBuyerSessionSetCookie(sessionId));
 }
+
+export function clearBuyerSessionCookie(): string {
+  return `${BUYER_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+}
+
+export function appendClearBuyerSessionCookie(response: NextResponse): void {
+  response.headers.append("Set-Cookie", clearBuyerSessionCookie());
+}
