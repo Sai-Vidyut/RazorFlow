@@ -31,9 +31,10 @@ npm run catalog:images
 | Route | Purpose |
 | --- | --- |
 | `/` | Product story and live metrics (this week) |
-| `/desk` | Intent → recommendation → policy → user-controlled cart → Razorpay payment |
-| `/policies` | Merchant guardrails (read/write) |
+| `/desk` | Intent → recommendation → policy → user-controlled cart → Razorpay payment → completed sale state |
+| `/policies` | Staff-only redirect to `/admin/policies` (buyers are sent to `/desk`) |
 | `/admin` | Merchant control plane: overview, orders, payments, recovery, products, policies, activity, insights, staff |
+| `/admin/policies` | Edit merchant guardrails (discount ceiling, margin floor, order cap, cross-sell, budget fit) |
 
 Legacy API: `GET /api/ledger` (merchant-auth JSON for landing metrics). There is no public `/ledger` page.
 
@@ -41,9 +42,11 @@ Legacy API: `GET /api/ledger` (merchant-auth JSON for landing metrics). There is
 
 | Role | Capability |
 | --- | --- |
-| **Buyer** | Register, verify email, sign in, run desk sessions, checkout on Razorpay |
-| **Staff** | Buyer access plus `/admin` for orders, products, policies, recovery, and activity |
+| **Buyer** | Register, verify email, sign in, run desk sessions, manage cart, checkout on Razorpay, view completed transaction state |
+| **Staff** | Buyer access plus `/admin` for orders, products, policy configuration, recovery, and activity |
 | **Administrator** | Staff access plus staff management (bootstrap via `INITIAL_ADMIN_EMAIL`) |
+
+Buyers see policy **effects** on the desk (allowed/blocked outcomes) but cannot read or mutate merchant guardrails. Policy APIs (`/api/policies`, `/api/admin/policies`) require a verified staff account.
 
 Email verification uses SMTP when configured; otherwise development and test capture mail in a dev outbox (`RAZORFLOW_USE_DEV_EMAIL=1`).
 
@@ -129,8 +132,9 @@ The app listens on `http://localhost:3010`.
 1. Open `/desk`, run the agent on a buyer intent (budget, use case, product count, or sort order).
 2. When multiple matches are found, browse options one at a time with **Next product**; add only what you want with **Add to cart** (never auto-added).
 3. Review and adjust the cart in the **Transaction** column (quantity, remove), then authorize payment (Razorpay Test Mode or simulate decline).
-4. On failure, recovery evaluates policy and catalog before retry.
-5. Open `/admin` for orders, payments, recovery queue, products, and audit activity.
+4. After verified capture, the Transaction column shows a **Payment captured** summary (product, amount, order ref, payment ID) and **Start new sale**. The completed sale persists if you reload `/desk` until you start a new sale.
+5. On failure or dismissed checkout, the sale stays available with **Try again**; recovery evaluates policy and catalog before retry.
+6. Staff: open `/admin` (or `/admin/policies`) for orders, payments, recovery queue, products, guardrail configuration, and audit activity.
 
 Agent recommendations are not cart items until the buyer taps **Add to cart**. The Transaction stage is the single source of truth for the active cart during checkout.
 
